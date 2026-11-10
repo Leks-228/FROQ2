@@ -1,0 +1,55 @@
+{% for track in tracks %}
+<div class="track-row">
+    <!-- Обложка -->
+    {% if track.album and track.album.cover %}
+        <img src="{{ track.album.cover.url }}" class="track-avatar" alt="Обложка">
+    {% else %}
+        <div class="track-avatar" style="background: var(--avatar-bg); display: flex; align-items: center; justify-content: center; color: var(--text-faint);">&#9835;</div>
+    {% endif %}
+
+    <!-- Название и исполнители -->
+    <div class="track-info-text">
+        <div class="track-title">{{ track.title }}</div>
+        <div class="track-artist">
+            {% for artist in track.artists.all %}
+                <a href="{% url 'artist_detail' artist.id %}"
+                   hx-get="{% url 'artist_detail' artist.id %}"
+                   hx-target="#main-content"
+                   hx-select="#main-content"
+                   hx-swap="outerHTML"
+                   hx-push-url="true"
+                   style="color: var(--text-dim); text-decoration: none;">
+                    {{ artist.name }}
+                </a>{% if not forloop.last %}, {% endif %}
+            {% endfor %}
+        </div>
+    </div>
+
+    <!-- Действия (появляются при наведении) -->
+    <div class="track-actions">
+        <button class="play-track-btn play-track"
+                data-url="{% url 'stream_audio' file_path=track.audio_file.name %}"
+                data-title="{{ track.title }}"
+                data-artist="{% for a in track.artists.all %}{{ a.name }}{% if not forloop.last %}, {% endif %}{% endfor %}"
+                data-index="{{ forloop.counter0 }}"
+                data-track-id="{{ track.id }}"
+                data-cover="{% if track.album and track.album.cover %}{{ track.album.cover.url }}{% endif %}"
+                title="Слушать">▶</button>
+
+        {% if user.is_authenticated %}
+        <button class="like-btn {% if track.id in liked_track_ids %}active{% endif %}"
+                data-track-id="{{ track.id }}">
+            {% if track.id in liked_track_ids %}♥{% else %}♡{% endif %}
+        </button>
+
+        <button class="add-to-playlist-btn"
+                hx-get="{% url 'user_playlists' %}?track_id={{ track.id }}"
+                hx-target="#playlist-modal-body"
+                hx-swap="innerHTML"
+                title="Добавить в плейлист">+</button>
+        {% endif %}
+    </div>
+</div>
+{% empty %}
+<p style="color: var(--text-dim);">Ничего не найдено.</p>
+{% endfor %}

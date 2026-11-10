@@ -1,0 +1,58 @@
+{% extends 'main/base.html' %}
+{% block title %}Популярное{% endblock %}
+{% block content %}
+
+<!-- Популярные треки -->
+<section class="px-4 mb-4">
+    <h2 class="section-title mb-3">Популярные треки</h2>
+    <div class="tracks-list">
+    {% for track in popular_tracks %}
+        <div class="track-item d-flex align-items-center gap-3 py-3 px-0 border-bottom border-custom"
+             style="border-color: var(--border-strong); transition: background 0.2s, border-color 0.2s;"
+             onmouseover="this.style.background='var(--item-bg)'"
+             onmouseout="this.style.background='';">
+            {% if track.album and track.album.cover %}
+                <img src="{{ track.album.cover.url }}" class="track-avatar-small"
+                     alt="Обложка" style="width: 40px; height: 40px; border-radius: 10px; object-fit: cover;">
+            {% else %}
+                <div class="track-avatar-small"
+                     style="width: 40px; height: 40px; background: var(--avatar-bg); display: flex; align-items: center; justify-content: center; color: var(--text-faint);">&#9835;</div>
+            {% endif %}
+            <div class="flex-grow-1">
+                <div class="track-title-small">{{ track.title }}</div>
+                <div class="track-artist-small">
+                    {% for artist in track.artists.all %}
+                        <a href="{% url 'artist_detail' artist.id %}"
+                           class="artist-link-small"
+                           style="color: var(--text-dim); text-decoration: none; font-size: 0.85rem;">
+                            {{ artist.name }}
+                        </a>{% if not forloop.last %}, {% endif %}
+                    {% endfor %}
+                </div>
+            </div>
+            <button class="play-track-btn play-track-small"
+                    data-url="{% url 'stream_audio' file_path=track.audio_file.name %}"
+                    data-title="{{ track.title }}"
+                    data-artist="{% for a in track.artists.all %}{{ a.name }}{% if not forloop.last %}, {% endif %}{% endfor %}"
+                    data-index="{{ forloop.counter0 }}"
+                    data-track-id="{{ track.id }}"
+                    data-cover="{% if track.album and track.album.cover %}{{ track.album.cover.url }}{% endif %}"
+                    title="Слушать">▶</button>
+            {% if user.is_authenticated %}
+            <button class="like-btn like-small" data-track-id="{{ track.id }}">
+                {% if track.id in liked_track_ids %}♥{% else %}♡{% endif %}
+            </button>
+            {% endif %}
+            <button class="add-to-playlist-btn small"
+                    hx-get="{% url 'user_playlists' %}?track_id={{ track.id }}"
+                    hx-target="#playlist-modal-body"
+                    hx-swap="innerHTML"
+                    title="Добавить в плейлист">+</button>
+        </div>
+    {% empty %}
+        <p style="color: var(--text-dim);">Популярных треков пока нет.</p>
+    {% endfor %}
+    </div>
+</section>
+
+{% endblock %}

@@ -1,0 +1,48 @@
+<div class="modal-sheet">
+    <!-- Заголовок модалки -->
+    <div class="modal-sheet-head">
+        <h5>Добавить в плейлист</h5>
+        <button type="button" class="modal-close" data-bs-dismiss="modal" aria-label="Закрыть">&times;</button>
+    </div>
+
+    <!-- Тело -->
+    <div class="modal-sheet-body">
+        {% if playlists %}
+            <div class="playlist-pick-list">
+                {% for playlist in playlists %}
+                    <button class="playlist-pick"
+                            hx-post="{% url 'add_to_playlist' track_id %}"
+                            hx-vals='{"playlist_id": "{{ playlist.id }}"}'
+                            hx-swap="none">
+                        {{ playlist.name }}
+                    </button>
+                {% endfor %}
+            </div>
+            <a href="{% url 'create_playlist' %}"
+               hx-get="{% url 'create_playlist' %}"
+               hx-target="#main-content"
+               hx-push-url="true"
+               data-bs-dismiss="modal"
+               class="btn-pill modal-create">
+                + Создать новый плейлист
+            </a>
+        {% else %}
+            <p class="empty-state">У вас пока нет плейлистов.</p>
+            <a href="{% url 'create_playlist' %}"
+               hx-get="{% url 'create_playlist' %}"
+               hx-target="#main-content"
+               hx-push-url="true"
+               data-bs-dismiss="modal"
+               class="btn-pill modal-create">
+                Создать первый плейлист
+            </a>
+        {% endif %}
+    </div>
+
+    <!-- Футер -->
+    <div class="modal-sheet-foot">
+        <button type="button" class="btn-pill btn-pill-ghost" data-bs-dismiss="modal">
+            Отмена
+        </button>
+    </div>
+</div>

@@ -1,0 +1,47 @@
+{% extends 'main/base.html' %}
+{% block title %}Мои плейлисты{% endblock %}
+{% block content %}
+
+<div class="page-header">
+    <h2 class="section-title mb-0">Мои плейлисты</h2>
+    <a href="{% url 'create_playlist' %}"
+       hx-get="{% url 'create_playlist' %}"
+       hx-target="#main-content"
+       hx-select="#main-content"
+       hx-swap="outerHTML"
+       hx-push-url="true"
+       class="btn-pill">
+        + Создать плейлист
+    </a>
+</div>
+
+{% if playlists %}
+<div class="albums-grid playlist-grid">
+    {% for playlist in playlists %}
+    <a href="{% url 'playlist_detail' playlist.id %}"
+       hx-get="{% url 'playlist_detail' playlist.id %}"
+       hx-target="#main-content"
+       hx-select="#main-content"
+       hx-swap="outerHTML"
+       hx-push-url="true"
+       class="album-card playlist-card">
+        <div class="album-card-inner">
+            {% if playlist.cover %}
+                <img src="{{ playlist.cover.url }}" alt="{{ playlist.name }}">
+            {% else %}
+                <div class="cover-fallback playlist-cover-fallback">{{ playlist.name|slice:":1"|upper }}</div>
+            {% endif %}
+            <div class="playlist-card-body">
+                <h5>{{ playlist.name }}</h5>
+                <p>{{ playlist.tracks.count }} треков</p>
+                <p>Плейлист</p>
+            </div>
+        </div>
+    </a>
+    {% endfor %}
+</div>
+{% else %}
+<p class="empty-state">У вас пока нет плейлистов.</p>
+{% endif %}
+
+{% endblock %}

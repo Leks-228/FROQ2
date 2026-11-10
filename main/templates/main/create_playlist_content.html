@@ -1,0 +1,89 @@
+<!-- Фрагмент страницы создания плейлиста.
+     Используется для обычного рендера (через include) и для HTMX-ответов:
+     при ошибках валидации и других частичных обновлениях возвращаем только
+     этот фрагмент, чтобы не подменять всю страницу и не трогать плеер. -->
+<div class="max-width-480 mx-auto px-4 py-5">
+    <div class="px-4 py-5">
+        <h2 class="section-title mb-4">Создать новый плейлист</h2>
+
+        <form method="post"
+              enctype="multipart/form-data"
+              action="{% url 'create_playlist' %}"
+              hx-post="{% url 'create_playlist' %}"
+              hx-target="#main-content"
+              hx-swap="innerHTML"
+              hx-encoding="multipart/form-data"
+              hx-push-url="true"
+              style="background: var(--card-bg);
+                     backdrop-filter: blur(20px);
+                     -webkit-backdrop-filter: blur(20px);
+                     border: 1px solid var(--glass-border);
+                     border-radius: var(--card-radius);
+                     padding: 2.5rem;
+                     box-shadow: var(--shadow-lg);">
+            {% csrf_token %}
+
+            {% if form.errors %}
+            <ul class="errorlist" style="margin: 0 0 1rem; padding: 0; list-style: none; color: var(--danger); font-size: 0.85rem;">
+                {% for field in form %}
+                    {% for error in field.errors %}
+                        <li>{{ error }}</li>
+                    {% endfor %}
+                {% endfor %}
+                {% for error in form.non_field_errors %}
+                    <li>{{ error }}</li>
+                {% endfor %}
+            </ul>
+            {% endif %}
+
+            <div style="margin-bottom: 1.5rem;">
+                <label for="name" style="display: block; margin-bottom: 0.5rem; color: var(--text); font-weight: 500;">
+                    Название плейлиста
+                </label>
+                <input type="text"
+                       id="name"
+                       name="name"
+                       required
+                       value="{{ form.name.value|default_if_none:'' }}"
+                       style="width: 100%;
+                              padding: 12px 16px;
+                              background: var(--input-bg);
+                              border: 1px solid var(--glass-border);
+                              border-radius: 12px;
+                              color: var(--text);
+                              font-size: 1rem;
+                              outline: none;
+                              transition: border 0.2s;"
+                       onfocus="this.style.border='1px solid var(--accent)'"
+                       onblur="this.style.border='1px solid var(--glass-border)'">
+            </div>
+
+            <div style="margin-bottom: 1.5rem;">
+                <label for="id_cover" style="display: block; margin-bottom: 0.5rem; color: var(--text); font-weight: 500;">
+                    Обложка плейлиста
+                </label>
+                {{ form.cover }}
+                <small style="display: block; margin-top: 0.4rem; color: var(--text-faint);">
+                    Необязательно. Можно добавить или заменить позже на странице плейлиста.
+                </small>
+            </div>
+
+            <button type="submit"
+                    style="background: var(--accent);
+                           border: none;
+                           color: var(--accent-contrast);
+                           padding: 12px 28px;
+                           border-radius: 25px;
+                           font-weight: 600;
+                           cursor: pointer;
+                           transition: background 0.2s, transform 0.1s;
+                           box-shadow: 0 4px 12px rgba(255,107,53,0.32);"
+                    onmouseover="this.style.background='var(--accent-glow)'"
+                    onmouseout="this.style.background='var(--accent)'"
+                    onmousedown="this.style.transform='scale(0.97)'"
+                    onmouseup="this.style.transform='scale(1)'">
+                Создать
+            </button>
+        </form>
+    </div>
+</div>

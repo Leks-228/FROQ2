@@ -1,0 +1,39 @@
+# Виртуальное окружение
+venv/
+.venv/
+env/
+
+# Python cache
+__pycache__/
+*.pyc
+*.pyo
+
+# Локальная база: содержит пользователей и хэши паролей — в git нельзя
+db.sqlite3
+db.sqlite3-journal
+
+# Загруженные пользователями файлы (на проде они в Cloudinary)
+media/
+
+# Собранная статика — создаётся заново через collectstatic
+staticfiles/
+
+# Архивы деплоя (содержат venv и весят десятки МБ)
+*.zip
+DEPLOY.zip
+
+# Случайный вложенный git-репозиторий: ломает пуш корневого репозитория
+FROQ/
+
+# Секреты
+.env
+.env.*
+
+# Дампы базы
+data.json
+backup*.json
+
+# Системный мусор
+.DS_Store
+Thumbs.db
+*.log

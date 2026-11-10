@@ -1,0 +1,146 @@
+{% extends 'main/base.html' %}
+{% load crispy_forms_tags %}
+
+{% block title %}Загрузка альбома{% endblock %}
+
+{% block content %}
+<div style="max-width: 800px; margin: 0 auto;">
+    <h2 style="margin-bottom: 1.5rem;">Загрузить новый альбом</h2>
+
+    <form method="post" enctype="multipart/form-data" id="album-form"
+          style="background: var(--card-bg);
+                 backdrop-filter: blur(20px);
+                 -webkit-backdrop-filter: blur(20px);
+                 border: 1px solid var(--glass-border);
+                 border-radius: 16px;
+                 padding: 2rem;
+                 box-shadow: var(--shadow-lg);">
+        {% csrf_token %}
+
+        <h4 style="margin-bottom: 1rem; color: var(--text);">Информация об альбоме</h4>
+        {{ album_form|crispy }}
+
+        <hr style="border-color: var(--glass-border); margin: 2rem 0;">
+
+        <h4 style="margin-bottom: 1rem; color: var(--text);">Треки</h4>
+        <div id="tracks-formset">
+            {{ track_formset.management_form }}
+            {% for form in track_formset %}
+            <div class="track-form" id="form-{{ forloop.counter0 }}"
+                 style="margin-bottom: 1rem; padding: 1rem; border: 1px solid var(--glass-border); border-radius: 12px; background: var(--input-bg);">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.8rem;">
+                    <h5 style="margin: 0; color: var(--text);">Трек #{{ forloop.counter }}</h5>
+                    <button type="button" class="delete-form"
+                            data-form="{{ forloop.counter0 }}"
+                            style="background: none; border: none; color: var(--text-dim); font-size: 1.2rem; cursor: pointer; padding: 4px 8px; border-radius: 4px; transition: 0.2s;"
+                            onmouseover="this.style.background='rgba(251,113,133,0.18)'; this.style.color='var(--danger)';"
+                            onmouseout="this.style.background='none'; this.style.color='var(--text-dim)';"
+                            title="Удалить трек">&#10005;</button>
+                </div>
+                {{ form|crispy }}
+            </div>
+            {% endfor %}
+        </div>
+
+        <button type="button" id="add-track"
+                style="background: transparent; border: 1px solid var(--accent); color: var(--accent); padding: 8px 18px; border-radius: 20px; font-weight: 500; margin-bottom: 1.5rem; cursor: pointer; transition: 0.2s;"
+                onmouseover="this.style.background='var(--accent)'; this.style.color='#fff';"
+                onmouseout="this.style.background='transparent'; this.style.color='var(--accent)';">
+            + Добавить ещё трек
+        </button>
+        <br>
+        <button type="submit"
+                style="background: var(--accent); border: none; color: #0B0B0B; padding: 10px 28px; border-radius: 25px; font-weight: 600; cursor: pointer; transition: background 0.2s, transform 0.1s; box-shadow: 0 4px 12px rgba(255,107,53,0.32);"
+                onmouseover="this.style.background='var(--accent-glow)'"
+                onmouseout="this.style.background='var(--accent)'"
+                onmousedown="this.style.transform='scale(0.97)'"
+                onmouseup="this.style.transform='scale(1)'">
+            Загрузить альбом
+        </button>
+    </form>
+</div>
+
+<script>
+    function createEmptyForm(formNum) {
+        const template = `
+            <div class="track-form" id="form-${formNum}"
+                 style="margin-bottom: 1rem; padding: 1rem; border: 1px solid var(--glass-border); border-radius: 12px; background: var(--input-bg);">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.8rem;">
+                    <h5 style="margin: 0; color: var(--text);">Трек #${formNum + 1}</h5>
+                    <button type="button" class="delete-form"
+                            data-form="${formNum}"
+                            style="background: none; border: none; color: var(--text-dim); font-size: 1.2rem; cursor: pointer; padding: 4px 8px; border-radius: 4px; transition: 0.2s;"
+                            onmouseover="this.style.background='rgba(251,113,133,0.18)'; this.style.color='var(--danger)';"
+                            onmouseout="this.style.background='none'; this.style.color='var(--text-dim)';"
+                            title="Удалить трек">&#10005;</button>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label" for="id_tracks-${formNum}-title">Название трека</label>
+                    <input type="text" name="tracks-${formNum}-title" class="form-control" id="id_tracks-${formNum}-title">
+                </div>
+                <div class="mb-3">
+                    <label class="form-label" for="id_tracks-${formNum}-track_number">Номер трека</label>
+                    <input type="number" name="tracks-${formNum}-track_number" class="form-control" id="id_tracks-${formNum}-track_number">
+                </div>
+                <div class="mb-3">
+                    <label class="form-label" for="id_tracks-${formNum}-audio_file">MP3 файл</label>
+                    <input type="file" name="tracks-${formNum}-audio_file" class="form-control" id="id_tracks-${formNum}-audio_file">
+                </div>
+            </div>
+        `;
+        const temp = document.createElement('div');
+        temp.innerHTML = template.trim();
+        return temp.firstChild;
+    }
+
+    document.addEventListener('DOMContentLoaded', function() {
+        const addButton = document.getElementById('add-track');
+        const formsetDiv = document.getElementById('tracks-formset');
+
+        addButton.addEventListener('click', function() {
+            const forms = document.querySelectorAll('.track-form');
+            const totalForms = document.getElementById('id_tracks-TOTAL_FORMS');
+            const formNum = forms.length;
+
+            const newForm = createEmptyForm(formNum);
+            formsetDiv.appendChild(newForm);
+            totalForms.value = formNum + 1;
+        });
+    });
+
+    document.addEventListener('click', function(e) {
+        if (e.target.classList.contains('delete-form')) {
+            const formNum = e.target.dataset.form;
+            const form = document.getElementById(`form-${formNum}`);
+
+            if (form) {
+                form.remove();
+                const totalForms = document.getElementById('id_tracks-TOTAL_FORMS');
+                const currentForms = document.querySelectorAll('.track-form');
+                totalForms.value = currentForms.length;
+
+                currentForms.forEach((form, index) => {
+                    form.id = `form-${index}`;
+                    const header = form.querySelector('h5');
+                    if (header) {
+                        header.textContent = `Трек #${index + 1}`;
+                    }
+                    const deleteBtn = form.querySelector('.delete-form');
+                    if (deleteBtn) {
+                        deleteBtn.dataset.form = index;
+                    }
+                    const inputs = form.querySelectorAll('input, select, textarea');
+                    inputs.forEach(input => {
+                        if (input.name) {
+                            input.name = input.name.replace(/tracks-\d+-/, `tracks-${index}-`);
+                        }
+                        if (input.id) {
+                            input.id = input.id.replace(/id_tracks-\d+-/, `id_tracks-${index}-`);
+                        }
+                    });
+                });
+            }
+        }
+    });
+</script>
+{% endblock %}

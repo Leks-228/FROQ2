@@ -1,0 +1,168 @@
+{% extends 'main/base.html' %}
+{% block title %}Поиск{% if query %}: {{ query }}{% endif %}{% endblock %}
+{% block content %}
+
+<!-- Поиск -->
+<div class="px-4 mb-3">
+    <form hx-get="{% url 'search' %}"
+          hx-target="#main-content"
+          hx-select="#main-content"
+          hx-swap="outerHTML"
+          hx-push-url="true"
+          style="display: flex; gap: 10px; margin-bottom: 2rem;">
+        <input type="text" name="q"
+               placeholder="Трек, исполнитель или альбом..."
+               value="{{ query }}"
+               style="flex: 1; padding: 10px 16px; background: var(--input-bg); border: 1px solid var(--glass-border); border-radius: 20px; color: var(--text); outline: none; transition: border 0.2s;"
+               onfocus="this.style.border='1px solid var(--accent)'"
+               onblur="this.style.border='1px solid var(--glass-border)'">
+        <button type="submit"
+                style="background: var(--accent);
+                       border: none;
+                       color: #0B0B0B;
+                       padding: 10px 20px;
+                       border-radius: 20px;
+                       font-weight: 500;
+                       cursor: pointer;
+                       transition: background 0.2s;
+                       box-shadow: 0 4px 12px rgba(255,107,53,0.32);"
+                onmouseover="this.style.background='var(--accent-glow)'"
+                onmouseout="this.style.background='var(--accent)'">
+            Найти
+        </button>
+    </form>
+</div>
+
+{% if query %}
+    <h2 class="section-title mb-3">Результаты по запросу «{{ query }}»</h2>
+
+    {% if tracks %}
+        <h4 class="mb-3">Треки</h4>
+        <div class="tracks-list">
+        {% for track in tracks %}
+            <div class="track-item d-flex align-items-center gap-3 py-3 px-0 border-bottom border-custom"
+                 style="border-color: var(--border-strong); transition: background 0.2s, border-color 0.2s;"
+                 onmouseover="this.style.background='var(--item-bg)'"
+                 onmouseout="this.style.background='';">
+                {% if track.album and track.album.cover %}
+                    <img src="{{ track.album.cover.url }}" class="track-avatar-small"
+                         alt="Обложка" style="width: 40px; height: 40px; border-radius: 10px; object-fit: cover;">
+                {% else %}
+                    <div class="track-avatar-small"
+                         style="width: 40px; height: 40px; background: var(--avatar-bg); display: flex; align-items: center; justify-content: center; color: var(--text-faint);">&#9835;</div>
+                {% endif %}
+                <div class="flex-grow-1">
+                    <div class="track-title-small">{{ track.title }}</div>
+                    <div class="track-artist-small">
+                        {% for artist in track.artists.all %}
+                            <a href="{% url 'artist_detail' artist.id %}"
+                               class="artist-link-small"
+                               style="color: var(--text-dim); text-decoration: none; font-size: 0.85rem;">
+                                {{ artist.name }}
+                            </a>{% if not forloop.last %}, {% endif %}
+                        {% endfor %}
+                    </div>
+                </div>
+                <button class="play-track-btn play-track-small"
+                        data-url="{% url 'stream_audio' file_path=track.audio_file.name %}"
+                        data-title="{{ track.title }}"
+                        data-artist="{% for a in track.artists.all %}{{ a.name }}{% if not forloop.last %}, {% endif %}{% endfor %}"
+                        data-index="{{ forloop.counter0 }}"
+                        data-track-id="{{ track.id }}"
+                        data-cover="{% if track.album and track.album.cover %}{{ track.album.cover.url }}{% endif %}"
+                        title="Слушать">▶</button>
+                {% if user.is_authenticated %}
+                <button class="like-btn like-small" data-track-id="{{ track.id }}">
+                    {% if track.id in liked_track_ids %}♥{% else %}♡{% endif %}
+                </button>
+                {% endif %}
+                <button class="add-to-playlist-btn small"
+                        hx-get="{% url 'user_playlists' %}?track_id={{ track.id }}"
+                        hx-target="#playlist-modal-body"
+                        hx-swap="innerHTML"
+                        title="Добавить в плейлист">+</button>
+            </div>
+        {% endfor %}
+        </div>
+    {% endif %}
+
+    {% if artists %}
+        <h4 class="mb-3 mt-4">Исполнители</h4>
+        <div class="albums-grid">
+        {% for artist in artists %}
+            <div class="col-md-3 col-lg-2">
+                <a href="{% url 'artist_detail' artist.id %}"
+                   hx-get="{% url 'artist_detail' artist.id %}"
+                   hx-target="#main-content"
+                   hx-select="#main-content"
+                   hx-swap="outerHTML"
+                   hx-push-url="true"
+                   style="text-decoration: none; color: inherit;">
+                    <div class="album-card"
+                         style="background: var(--card-bg); border: 1px solid var(--glass-border); border-radius: var(--card-radius); overflow: hidden; transition: transform 0.25s, box-shadow 0.25s, border-color 0.25s; box-shadow: var(--card-shadow);"
+                         onmouseover="this.style.transform='translateY(-4px)'; this.style.boxShadow='var(--hover-shadow)'; this.style.borderColor='var(--border-strong)'"
+                         onmouseout="this.style.transform=''; this.style.boxShadow='var(--card-shadow)'; this.style.borderColor='';">
+                        {% if artist.photo %}
+                            <img src="{{ artist.photo.url }}" style="height: 160px; width: 100%; object-fit: cover; transition: transform 0.3s;"
+                                 onmouseover="this.style.transform='scale(1.05)'"
+                                 onmouseout="this.style.transform='scale(1)'"
+                                 alt="{{ artist.name }}">
+                        {% else %}
+                            <div style="height: 160px; background: var(--avatar-bg); display: flex; align-items: center; justify-content: center; color: var(--text-faint); font-size: 2rem;">&#9835;</div>
+                        {% endif %}
+                        <div style="padding: 10px 12px;">
+                            <h5 style="margin: 0 0 4px; color: var(--text); font-size: 0.9rem;">{{ artist.name }}</h5>
+                        </div>
+                    </div>
+                </a>
+            </div>
+        {% endfor %}
+        </div>
+    {% endif %}
+
+    {% if albums %}
+        <h4 class="mb-3 mt-4">Альбомы</h4>
+        <div class="albums-grid">
+        {% for album in albums %}
+            <div class="col-md-3 col-lg-2">
+                <a href="{% url 'album_detail' album.id %}"
+                   hx-get="{% url 'album_detail' album.id %}"
+                   hx-target="#main-content"
+                   hx-select="#main-content"
+                   hx-swap="outerHTML"
+                   hx-push-url="true"
+                   style="text-decoration: none; color: inherit;">
+                    <div class="album-card"
+                         style="background: var(--card-bg); border: 1px solid var(--glass-border); border-radius: var(--card-radius); overflow: hidden; transition: transform 0.25s, box-shadow 0.25s, border-color 0.25s; box-shadow: var(--card-shadow);"
+                         onmouseover="this.style.transform='translateY(-4px)'; this.style.boxShadow='var(--hover-shadow)'; this.style.borderColor='var(--border-strong)'"
+                         onmouseout="this.style.transform=''; this.style.boxShadow='var(--card-shadow)'; this.style.borderColor='';">
+                        {% if album.cover %}
+                            <img src="{{ album.cover.url }}" style="height: 160px; width: 100%; object-fit: cover; transition: transform 0.3s;"
+                                 onmouseover="this.style.transform='scale(1.05)'"
+                                 onmouseout="this.style.transform='scale(1)'"
+                                 alt="{{ album.title }}">
+                        {% else %}
+                            <div style="height: 160px; background: var(--avatar-bg); display: flex; align-items: center; justify-content: center; color: var(--text-faint); font-size: 2rem;">&#9835;</div>
+                        {% endif %}
+                        <div style="padding: 10px 12px;">
+                            <h5 style="margin: 0 0 4px; color: var(--text); font-size: 0.9rem;">{{ album.title }}</h5>
+                            <p style="margin: 0; color: var(--text-dim); font-size: 0.8rem;">
+                                {% for album_artist in album.artists.all %}{{ album_artist.name }}{% if not forloop.last %}, {% endif %}{% endfor %}
+                            </p>
+                            <p style="margin: 0; color: var(--text-dim); font-size: 0.75rem; opacity: 0.7;">
+                                {{ album.year }} • {{ album.get_type_display }}
+                            </p>
+                        </div>
+                    </div>
+                </a>
+            </div>
+        {% endfor %}
+        </div>
+    {% endif %}
+
+    {% if not tracks and not artists and not albums %}
+        <p style="color: var(--text-dim);">Ничего не найдено.</p>
+    {% endif %}
+{% endif %}
+
+{% endblock %}

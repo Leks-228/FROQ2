@@ -1,0 +1,11 @@
+# Нормализуем переводы строк: в репозитории всегда LF,
+# иначе build.sh на Linux-сервере упадёт с "$'\r': command not found".
+* text=auto
+*.sh text eol=lf
+Procfile text eol=lf
+
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.mp3 binary

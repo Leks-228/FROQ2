@@ -1,0 +1,108 @@
+{% extends 'main/base.html' %}
+{% block title %}Профиль{% endblock %}
+{% block content %}
+
+<!-- Главный контент профиля -->
+<div class="px-4 py-5">
+    <!-- Заголовок и действия -->
+    <div class="page-header">
+        <h2 class="section-title mb-0">Профиль</h2>
+        <div class="page-actions">
+            <a href="{% url 'profile_edit' %}"
+               hx-get="{% url 'profile_edit' %}"
+               hx-target="#main-content"
+               hx-select="#main-content"
+               hx-swap="outerHTML"
+               hx-push-url="true"
+               class="btn-pill">
+                Редактировать
+            </a>
+            <a href="{% url 'change_password' %}"
+               hx-get="{% url 'change_password' %}"
+               hx-target="#main-content"
+               hx-select="#main-content"
+               hx-swap="outerHTML"
+               hx-push-url="true"
+               class="btn-pill btn-pill-ghost">
+                Сменить пароль
+            </a>
+            <!-- Переключатель темы -->
+            <button id="theme-toggle" class="btn-pill btn-pill-ghost">
+                <span id="theme-icon">&#9788;</span> Тема
+            </button>
+            <!-- Кнопка выхода -->
+            <a href="{% url 'logout' %}" class="btn-pill btn-pill-danger">
+                Выйти
+            </a>
+        </div>
+    </div>
+
+    <!-- Аватар и информация -->
+    <div class="mb-5">
+        <div class="row g-4 align-items-center">
+            <!-- Аватар -->
+            <div class="col-auto">
+                <div class="profile-avatar">
+                    {% if profile and profile.avatar %}
+                        <img src="{{ profile.avatar.url }}" alt="Аватар">
+                    {% else %}
+                        <div class="profile-avatar-fallback">&#9672;</div>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Данные -->
+            <div class="col">
+                <div class="small mb-3">
+                    <div style="color: var(--text-dim); margin-bottom: 2px;">Имя пользователя</div>
+                    <div style="font-size: 1.1rem;">{{ user.username }}</div>
+                </div>
+                <div class="small mb-3">
+                    <div style="color: var(--text-dim); margin-bottom: 2px;">Email</div>
+                    <div style="font-size: 1.1rem;">{{ user.email|default:"Не указан" }}</div>
+                </div>
+                {% if profile and profile.bio %}
+                <div class="small mb-3">
+                    <div style="color: var(--text-dim); margin-bottom: 2px;">О себе</div>
+                    <div style="font-size: 1.1rem;">{{ profile.bio }}</div>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Статистика -->
+    <div>
+        <h3 class="section-title mb-3">Статистика</h3>
+        <div class="row g-4">
+            <!-- Избранные -->
+            <div class="col-md-4">
+                <div class="stat-card">
+                    <div class="stat-icon">&#9829;</div>
+                    <div class="stat-label">Избранных</div>
+                    <div class="stat-value">{{ stats.favorites_count }}</div>
+                </div>
+            </div>
+
+            <!-- Плейлисты -->
+            <div class="col-md-4">
+                <div class="stat-card">
+                    <div class="stat-icon">&#9776;</div>
+                    <div class="stat-label">Плейлистов</div>
+                    <div class="stat-value">{{ stats.playlists_count }}</div>
+                </div>
+            </div>
+
+            <!-- Прослушано -->
+            <div class="col-md-4">
+                <div class="stat-card">
+                    <div class="stat-icon">&#9654;</div>
+                    <div class="stat-label">Прослушано</div>
+                    <div class="stat-value">{{ stats.history_count }}</div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% endblock %}

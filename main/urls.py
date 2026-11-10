@@ -1,0 +1,33 @@
+from django.urls import path
+from . import views
+
+urlpatterns = [
+    path('', views.index, name='index'),
+    path('register/', views.register, name='register'),
+    path('login/', views.user_login, name='login'),
+    path('logout/', views.user_logout, name='logout'),
+    path('upload/', views.upload_track, name='upload'),
+    path('popular/', views.popular_playlist, name='popular'),
+    path('upload_album/', views.upload_album, name='upload_album'),
+    path('album/<int:album_id>/', views.album_detail, name='album_detail'),
+    path('stream/<path:file_path>/', views.stream_audio, name='stream_audio'),
+    path('artist/<int:artist_id>/', views.artist_detail, name='artist_detail'),
+    path('like/<int:track_id>/', views.like_track, name='like_track'),
+    path('like-album/<int:album_id>/', views.like_album, name='like_album'),
+    path('favorites/', views.favorites, name='favorites'),
+    path('check-like/<int:track_id>/', views.check_like, name='check_like'),
+    path('search/', views.search, name='search'),
+    path('playlist/<int:playlist_id>/', views.playlist_detail, name='playlist_detail'),
+    path('playlist/create/', views.create_playlist, name='create_playlist'),
+    path('playlist/<int:playlist_id>/cover/', views.update_playlist_cover, name='update_playlist_cover'),
+    path('playlist/add/<int:track_id>/', views.add_to_playlist, name='add_to_playlist'),
+    path('playlist/<int:playlist_id>/remove/<int:track_id>/', views.remove_from_playlist, name='remove_from_playlist'),
+    path('playlist/list/', views.user_playlists, name='user_playlists'),
+    path('playlists/', views.playlist_list, name='playlist_list'),
+    path('record-listen/<int:track_id>/', views.record_listen, name='record_listen'),
+    path('history/', views.listening_history, name='listening_history'),
+    path('profile/', views.profile_view, name='profile'),
+    path('profile/edit/', views.profile_edit, name='profile_edit'),
+    path('profile/change-password/', views.change_password, name='change_password'),
+    path('playlist/<int:playlist_id>/delete/', views.delete_playlist, name='delete_playlist'),
+]

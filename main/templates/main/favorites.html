@@ -1,0 +1,110 @@
+{% extends 'main/base.html' %}
+{% block title %}Избранное{% endblock %}
+{% block content %}
+
+<!-- Избранное -->
+<section class="px-4 mb-4">
+    <h2 class="section-title mb-3">Избранные альбомы</h2>
+    <div class="fav-albums-scroll">
+        {% for album in favorite_albums %}
+        <a href="{% url 'album_detail' album.id %}"
+           class="fav-album-card"
+           hx-get="{% url 'album_detail' album.id %}"
+           hx-target="#main-content"
+           hx-select="#main-content"
+           hx-swap="outerHTML"
+           hx-push-url="true">
+            {% if album.cover %}
+                <img src="{{ album.cover.url }}" alt="{{ album.title }}">
+            {% else %}
+                <div class="fav-album-fallback">&#9835;</div>
+            {% endif %}
+            <div class="fav-album-info">
+                <div class="fav-album-title">{{ album.title }}</div>
+                <div class="fav-album-artist">{% for a in album.artists.all %}{{ a.name }}{% if not forloop.last %}, {% endif %}{% endfor %}</div>
+            </div>
+        </a>
+        {% empty %}
+        <p style="color: var(--text-dim);">Нет избранных альбомов.</p>
+        {% endfor %}
+    </div>
+
+    <h2 class="section-title mb-3" style="margin-top: 2rem;">Избранные треки</h2>
+
+    <!-- Поиск -->
+    <div class="mb-3">
+        <input type="text"
+               name="q"
+               placeholder="Поиск в избранном..."
+               value="{{ query }}"
+               hx-get="{% url 'favorites' %}"
+               hx-target="#tracks-list"
+               hx-trigger="keyup changed delay:300ms"
+               hx-select="#tracks-list"
+               autocomplete="off"
+               style="flex: 1; padding: 10px 16px; background: var(--input-bg); border: 1px solid var(--glass-border); border-radius: 20px; color: var(--text); outline: none; transition: border 0.2s;"
+               onfocus="this.style.border='1px solid var(--accent)'"
+               onblur="this.style.border='1px solid var(--glass-border)'">
+        {% if query %}
+            <a href="{% url 'favorites' %}"
+               hx-get="{% url 'favorites' %}"
+               hx-target="#tracks-list"
+               hx-select="#tracks-list"
+               onclick="document.querySelector('[name=q]').value='';"
+               style="background: transparent; border: 1px solid var(--glass-border); color: var(--text-dim); padding: 10px 16px; border-radius: 20px; text-decoration: none; transition: 0.2s; display: flex; align-items: center;"
+               onmouseover="this.style.background='rgba(255,107,53,0.14)'; this.style.color='#fff';"
+               onmouseout="this.style.background='transparent'; this.style.color='var(--text-dim)';">
+                &#10005; Сбросить
+            </a>
+        {% endif %}
+    </div>
+
+    <!-- Список треков -->
+    <div id="tracks-list">
+    {% for track in tracks %}
+        <div class="track-item d-flex align-items-center gap-3 py-3 px-0 border-bottom border-custom" style="border-color: var(--border-strong);">
+            {% if track.album and track.album.cover %}
+                <img src="{{ track.album.cover.url }}" alt="Обложка" style="width:48px;height:48px;object-fit:cover;border:2px solid var(--glass-border);">
+            {% else %}
+                <div style="width:48px;height:48px;background:var(--avatar-bg);display:flex;align-items:center;justify-content:center;color:var(--text-faint);border:2px solid var(--glass-border);">&#9835;</div>
+            {% endif %}
+            <div class="flex-grow-1">
+                <div class="track-title-small">{{ track.title }}</div>
+                <div class="track-artist-small">
+                    {% for artist in track.artists.all %}
+                        <a href="{% url 'artist_detail' artist.id %}"
+                           class="artist-link-small"
+                           style="color: var(--text-dim); text-decoration: none; font-size: 0.85rem;">
+                            {{ artist.name }}
+                        </a>{% if not forloop.last %}, {% endif %}
+                    {% endfor %}
+                </div>
+            </div>
+            <button class="play-track-btn play-track-small"
+                    data-url="{% url 'stream_audio' file_path=track.audio_file.name %}"
+                    data-title="{{ track.title }}"
+                    data-artist="{% for a in track.artists.all %}{{ a.name }}{% if not forloop.last %}, {% endif %}{% endfor %}"
+                    data-index="{{ forloop.counter0 }}"
+                    data-track-id="{{ track.id }}"
+                    data-cover="{% if track.album and track.album.cover %}{{ track.album.cover.url }}{% endif %}"
+                    title="Слушать">▶</button>
+            {% if user.is_authenticated %}
+            <button class="like-btn like-small" data-track-id="{{ track.id }}">
+                {% if track.id in liked_track_ids %}♥{% else %}♡{% endif %}
+            </button>
+            {% endif %}
+            <button class="add-to-playlist-btn small"
+                    hx-get="{% url 'user_playlists' %}?track_id={{ track.id }}"
+                    hx-target="#playlist-modal-body"
+                    hx-swap="innerHTML"
+                    title="Добавить в плейлист">+</button>
+        </div>
+    {% empty %}
+        <p style="color: var(--text-dim);">
+            {% if query %}Ничего не найдено.{% else %}Нет избранных треков.{% endif %}
+        </p>
+    {% endfor %}
+    </div>
+</section>
+
+{% endblock %}

@@ -1,0 +1,120 @@
+{% extends 'main/base.html' %}
+{% block title %}{{ artist.name }}{% endblock %}
+{% block content %}
+
+<div class="container px-4 py-5">
+    <!-- Информация об исполнителе -->
+    <div class="row g-4 align-items-center detail-hero mb-5">
+        <div class="col-lg-4">
+            {% if artist.photo %}
+                <img src="{{ artist.photo.url }}" class="artist-photo-detail"
+                     style="width: 100%; border-radius: 20px; object-fit: cover; aspect-ratio: 1; margin-bottom: 2rem;"
+                     alt="{{ artist.name }}">
+            {% else %}
+                <div class="cover-fallback artist-cover-fallback">&#9835;</div>
+            {% endif %}
+        </div>
+        <div class="col-lg-8">
+            <h1 class="display-5 mb-3">{{ artist.name }}</h1>
+
+            {% if artist.bio %}
+                <p class="lead mb-4" style="color: var(--text-dim);">{{ artist.bio }}</p>
+            {% endif %}
+
+            <div class="d-flex gap-3">
+                <p class="mb-0 small" style="color: var(--text-dim);">
+                    <strong>Прослушиваний:</strong> {{ artist.plays|default:"0" }}
+                </p>
+                <p class="mb-0 small" style="color: var(--text-dim);">
+                    <strong>За месяц:</strong> {{ monthly_plays|default:"0" }}
+                </p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Альбомы -->
+    <div class="mb-5">
+        <h2 class="section-title mb-3">Альбомы</h2>
+        <div class="albums-grid row g-4">
+        {% for album in albums %}
+            <div class="col-md-3 col-lg-2">
+                <a href="{% url 'album_detail' album.id %}"
+                   class="album-card-album"
+                   hx-get="{% url 'album_detail' album.id %}"
+                   hx-target="#main-content"
+                   hx-select="#main-content"
+                   hx-swap="outerHTML"
+                   hx-push-url="true">
+                    {% if album.cover %}
+                        <img src="{{ album.cover.url }}" class="album-card-album-img" alt="{{ album.title }}">
+                    {% else %}
+                        <div class="cover-fallback">&#9835;</div>
+                    {% endif %}
+                    <div class="album-card-inner-album">
+                        <h5>{{ album.title }}</h5>
+                        <p>
+                            {% for album_artist in album.artists.all %}{{ album_artist.name }}{% if not forloop.last %}, {% endif %}{% endfor %}
+                        </p>
+                        <p>{{ album.year }} • {{ album.get_type_display }}</p>
+                    </div>
+                </a>
+            </div>
+        {% empty %}
+            <div class="col-12">
+                <p class="empty-state">Нет альбомов</p>
+            </div>
+        {% endfor %}
+        </div>
+    </div>
+
+    <!-- Популярные треки -->
+    <div>
+        <h2 class="section-title mb-3">Популярные треки</h2>
+        <div class="tracks-list-album">
+        {% for track in tracks %}
+            <div class="track-item-album d-flex align-items-center gap-3">
+                {% if track.album and track.album.cover %}
+                    <img src="{{ track.album.cover.url }}" class="track-avatar-album-small" alt="Обложка">
+                {% elif artist.photo %}
+                    <img src="{{ artist.photo.url }}" class="track-avatar-album-small" alt="{{ artist.name }}">
+                {% else %}
+                    <div class="track-avatar-album-small track-avatar-fallback">&#9835;</div>
+                {% endif %}
+                <div class="flex-grow-1">
+                    <div class="track-title-album-small">{{ track.title }}</div>
+                    <div class="track-artist-album-small">
+                        {% for a in track.artists.all %}
+                            <a href="{% url 'artist_detail' a.id %}"
+                               class="artist-link-small">
+                                {{ a.name }}
+                            </a>{% if not forloop.last %}, {% endif %}
+                        {% endfor %}
+                    </div>
+                </div>
+                <button class="play-track-btn play-track-album-small"
+                        data-url="{% url 'stream_audio' file_path=track.audio_file.name %}"
+                        data-title="{{ track.title }}"
+                        data-artist="{% for a in track.artists.all %}{{ a.name }}{% if not forloop.last %}, {% endif %}{% endfor %}"
+                        data-index="{{ forloop.counter0 }}"
+                        data-track-id="{{ track.id }}"
+                        data-cover="{% if track.album and track.album.cover %}{{ track.album.cover.url }}{% elif artist.photo %}{{ artist.photo.url }}{% endif %}"
+                        title="Слушать">▶</button>
+                {% if user.is_authenticated %}
+                <button class="like-btn like-small" data-track-id="{{ track.id }}">
+                    {% if track.id in liked_track_ids %}♥{% else %}♡{% endif %}
+                </button>
+                {% endif %}
+                <button class="add-to-playlist-btn small"
+                        hx-get="{% url 'user_playlists' %}?track_id={{ track.id }}"
+                        hx-target="#playlist-modal-body"
+                        hx-swap="innerHTML"
+                        title="Добавить в плейлист">+</button>
+            </div>
+        {% empty %}
+            <p class="empty-state">Нет треков</p>
+        {% endfor %}
+        </div>
+    </div>
+</div>
+
+{% endblock %}

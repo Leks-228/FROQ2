@@ -1,0 +1,93 @@
+<!-- Часть страницы плейлиста, отдаваемая через HTMX.
+     Не должен расширять base.html: при HTMX-создании плейлиста мы
+     возвращаем только этот фрагмент, чтобы htmx не перерисовывал
+     всю страницу (и не сбрасывал играющий плеер). -->
+<div class="px-4 py-5">
+    <div class="playlist-hero detail-hero">
+        <div class="playlist-hero-cover"
+             data-playlist-name="{{ playlist.name }}"
+             data-playlist-initial="{{ playlist.name|slice:":1"|upper }}">
+            {% if playlist.cover %}
+                <img src="{{ playlist.cover.url }}" alt="{{ playlist.name }}">
+            {% else %}
+                <div class="cover-fallback playlist-cover-fallback">{{ playlist.name|slice:":1"|upper }}</div>
+            {% endif %}
+        </div>
+
+        <div class="playlist-hero-info">
+            <div class="page-header playlist-hero-header">
+                <div>
+                    <h2 class="section-title mb-0">{{ playlist.name }}</h2>
+                    <span class="page-subtitle">{{ tracks.count }} треков</span>
+                </div>
+                <a href="{% url 'delete_playlist' playlist.id %}"
+                   onclick="return confirm('Удалить плейлист «{{ playlist.name|escapejs }}»? Это действие нельзя отменить.');"
+                   class="btn-pill btn-pill-danger"
+                   title="Удалить плейлист">
+                    Удалить
+                </a>
+            </div>
+
+            {% if user == playlist.user %}
+            <form method="post"
+                  action="{% url 'update_playlist_cover' playlist.id %}"
+                  enctype="multipart/form-data"
+                  class="playlist-cover-form"
+                  data-remove-url="{% url 'update_playlist_cover' playlist.id %}">
+                {% csrf_token %}
+                <label for="id_cover">Обложка плейлиста</label>
+                {{ cover_form.cover }}
+                <button type="submit" class="btn-pill">Сохранить обложку</button>
+                <button type="button"
+                        class="btn-pill btn-pill-ghost playlist-cover-remove"
+                        title="Убрать обложку"
+                        {% if not playlist.cover %}hidden{% endif %}>Убрать</button>
+            </form>
+            <div class="playlist-cover-errors" role="alert" aria-live="polite"></div>
+            {% endif %}
+        </div>
+    </div>
+
+    <div class="playlist-tracks">
+    {% for track in tracks %}
+        <div class="track-item d-flex align-items-center gap-3">
+            {% if track.album and track.album.cover %}
+                <img src="{{ track.album.cover.url }}" class="track-avatar-small" alt="Обложка">
+            {% else %}
+                <div class="track-avatar-small track-avatar-fallback">&#9835;</div>
+            {% endif %}
+            <div class="flex-grow-1">
+                <div class="track-title-small">{{ track.title }}</div>
+                <div class="track-artist-small">
+                    {% for artist in track.artists.all %}
+                        <a href="{% url 'artist_detail' artist.id %}"
+                           class="artist-link-small">
+                            {{ artist.name }}
+                        </a>{% if not forloop.last %}, {% endif %}
+                    {% endfor %}
+                </div>
+            </div>
+            <button class="play-track-btn play-track-small"
+                    data-url="{% url 'stream_audio' file_path=track.audio_file.name %}"
+                    data-title="{{ track.title }}"
+                    data-artist="{% for a in track.artists.all %}{{ a.name }}{% if not forloop.last %}, {% endif %}{% endfor %}"
+                    data-index="{{ forloop.counter0 }}"
+                    data-track-id="{{ track.id }}"
+                    data-cover="{% if track.album and track.album.cover %}{{ track.album.cover.url }}{% endif %}"
+                    title="Слушать">▶</button>
+            {% if user.is_authenticated %}
+            <button class="like-btn like-small" data-track-id="{{ track.id }}">
+                {% if track.id in liked_track_ids %}♥{% else %}♡{% endif %}
+            </button>
+            {% endif %}
+            <button class="add-to-playlist-btn remove-from-playlist-btn small"
+                    hx-post="{% url 'remove_from_playlist' playlist.id track.id %}"
+                    hx-target="closest .track-item"
+                    hx-swap="delete"
+                    title="Убрать из плейлиста">&times;</button>
+        </div>
+    {% empty %}
+        <p class="empty-state">В этом плейлисте пока нет треков.</p>
+    {% endfor %}
+    </div>
+</div>
