@@ -744,6 +744,32 @@
                 }).catch(() => {});
             });
 
+            // Добавление чужого плейлиста в избранное
+            document.addEventListener('click', function(e) {
+                const btn = e.target.closest('.like-playlist-btn');
+                if (!btn) return;
+                e.preventDefault();
+                const playlistId = btn.dataset.playlistId;
+                if (!playlistId) return;
+                fetch(`/like-playlist/${playlistId}/`, {
+                    method: 'GET',
+                    headers: { 'X-Requested-With': 'XMLHttpRequest' }
+                })
+                .then(r => r.ok ? r.json() : null)
+                .then(data => {
+                    if (!data) return;
+                    if (data.liked) {
+                        btn.innerHTML = '&#9829;';
+                        btn.classList.add('active');
+                        btn.title = 'Убрать из избранного';
+                    } else {
+                        btn.innerHTML = '&#9825;';
+                        btn.classList.remove('active');
+                        btn.title = 'Добавить в избранное';
+                    }
+                }).catch(() => {});
+            });
+
             // Кнопка добавления в плейлист – просто открывает модалку, она есть в DOM
             // Дополнительных слушателей не нужно, HTMX сам обработает.
 
@@ -889,10 +915,11 @@
             }
 
             function updatePlaylistCoverPreview(url) {
-                var container = document.querySelector('.playlist-hero-cover');
+                var container = document.querySelector('.playlist-cover-visual');
                 if (!container) return;
-                var name = container.dataset.playlistName || '';
-                var initial = container.dataset.playlistInitial
+                var hero = container.closest('.playlist-hero-cover');
+                var name = (hero && hero.dataset.playlistName) || '';
+                var initial = (hero && hero.dataset.playlistInitial)
                     || (name ? name.charAt(0).toUpperCase() : '?');
                 container.innerHTML = '';
                 if (url) {
@@ -993,6 +1020,23 @@
                 if (!form) return;
                 e.preventDefault();
                 savePlaylistCover(form);
+            });
+
+            // Кнопка «Изменить обложку» открывает выбор файла,
+            // а выбранный файл сразу загружается без отдельной кнопки.
+            document.addEventListener('click', function(e) {
+                var pick = e.target.closest('[data-cover-pick]');
+                if (!pick) return;
+                e.preventDefault();
+                var form = pick.closest('.playlist-cover-form');
+                var input = form && form.querySelector('input[type="file"]');
+                if (input) input.click();
+            });
+
+            document.addEventListener('change', function(e) {
+                if (!e.target.matches('.playlist-cover-form input[type="file"]')) return;
+                var form = e.target.closest('.playlist-cover-form');
+                if (form) savePlaylistCover(form);
             });
 
             document.addEventListener('click', function(e) {
@@ -1099,6 +1143,62 @@
         step();
         window.addEventListener('resize', function(){ resize(); init(); });
     })();
+    </script>
+    <script>
+        (function() {
+            // Новые альбомы: показываем окно из 6 карточек, стрелка
+            // сдвигает его на 2 альбома. Первые карточки не уезжают
+            // влево, а просто скрываются.
+            var VISIBLE = 6;
+            var STEP = 2;
+
+            function updateSection(section, start) {
+                var cards = section.querySelectorAll('[data-album-card]');
+                var total = cards.length;
+                var maxStart = Math.max(0, total - VISIBLE);
+                if (start < 0) start = 0;
+                if (start > maxStart) start = maxStart;
+
+                section.dataset.albumStart = String(start);
+
+                cards.forEach(function(card, index) {
+                    var visible = index >= start && index < start + VISIBLE;
+                    card.classList.toggle('is-hidden', !visible);
+                });
+
+                var prev = section.querySelector('.new-albums-prev');
+                var next = section.querySelector('.new-albums-next');
+                if (prev) prev.disabled = start <= 0;
+                if (next) next.disabled = start >= maxStart;
+            }
+
+            function initNewAlbums() {
+                document.querySelectorAll('.new-albums-section').forEach(function(section) {
+                    var start = parseInt(section.dataset.albumStart || '0', 10);
+                    updateSection(section, start);
+                });
+            }
+
+            document.addEventListener('click', function(event) {
+                var next = event.target.closest('.new-albums-next');
+                var prev = event.target.closest('.new-albums-prev');
+                if (!next && !prev) return;
+
+                var section = event.target.closest('.new-albums-section');
+                if (!section) return;
+
+                var start = parseInt(section.dataset.albumStart || '0', 10);
+                updateSection(section, start + (next ? STEP : -STEP));
+            });
+
+            if (document.readyState === 'loading') {
+                document.addEventListener('DOMContentLoaded', initNewAlbums);
+            } else {
+                initNewAlbums();
+            }
+            document.addEventListener('htmx:afterSettle', initNewAlbums);
+            document.addEventListener('htmx:historyRestore', initNewAlbums);
+        })();
     </script>
 </body>
 </html>

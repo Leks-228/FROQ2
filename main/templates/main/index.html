@@ -4,11 +4,19 @@
 
 
 <!-- Новые альбомы -->
-<section class="px-4 mb-4">
-    <h2 class="section-title mb-3">Новые альбомы</h2>
-    <div class="albums-grid row g-4" id="albums-container">
-    {% for album in albums|slice:":4" %}
-        <div class="col-md-3 col-lg-2">
+<section class="px-4 mb-4 new-albums-section" id="new-albums-section" data-album-start="0">
+    <div class="section-heading-row">
+        <h2 class="section-title mb-0">Новые альбомы</h2>
+        {% if albums|length > 6 %}
+        <div class="section-nav" aria-label="Листать новые альбомы">
+            <button type="button" class="section-nav-btn new-albums-prev" aria-label="Предыдущие альбомы" disabled>&#8592;</button>
+            <button type="button" class="section-nav-btn new-albums-next" aria-label="Следующие альбомы">&#8594;</button>
+        </div>
+        {% endif %}
+    </div>
+    <div class="albums-grid new-albums-grid row g-4" id="albums-container">
+    {% for album in albums %}
+        <div class="col-md-3 col-lg-2{% if forloop.counter0 >= 6 %} is-hidden{% endif %}" data-album-card="{{ forloop.counter0 }}">
             <a href="{% url 'album_detail' album.id %}"
                class="album-card"
                hx-get="{% url 'album_detail' album.id %}"
@@ -53,7 +61,7 @@
 <section class="px-4 mb-4">
     <h2 class="section-title mb-3">Популярное</h2>
     <div class="tracks-list">
-    {% for track in popular_tracks|slice:":6" %}
+    {% for track in popular_tracks|slice:":10" %}
         <div class="track-item d-flex align-items-center gap-3 py-3 px-0 border-bottom border-custom"
              style="border-color: var(--border-strong); transition: background 0.2s, border-color 0.2s;">
             {% if track.album and track.album.cover %}

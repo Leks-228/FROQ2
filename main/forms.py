@@ -92,10 +92,20 @@ class CustomPasswordChangeForm(PasswordChangeForm):
 class PlaylistForm(forms.ModelForm):
     class Meta:
         model = Playlist
-        fields = ['name', 'cover']
+        fields = ['name', 'cover', 'is_private']
         labels = {
             'name': 'Название плейлиста',
             'cover': 'Обложка плейлиста',
+            'is_private': 'Закрытый плейлист',
+        }
+        widgets = {
+            # RadioSelect (а не CheckboxInput) нужен, чтобы значение "0"
+            # из формы не превращалось в True: CheckboxInput считает
+            # непустую строку "0" истиной.
+            'is_private': forms.RadioSelect(choices=[
+                (False, 'Открытый'),
+                (True, 'Закрытый'),
+            ]),
         }
 
 class PlaylistCoverForm(forms.ModelForm):

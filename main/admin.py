@@ -34,7 +34,8 @@ class TrackAdmin(admin.ModelAdmin):
 
 @admin.register(Playlist)
 class PlaylistAdmin(admin.ModelAdmin):
-    list_display = ('name', 'user', 'track_count', 'created_at')
+    list_display = ('name', 'user', 'is_private', 'track_count', 'created_at')
+    list_filter = ('is_private',)
     search_fields = ('name', 'user__username')
 
     def track_count(self, obj):

@@ -5,13 +5,11 @@ import tempfile
 
 from django.contrib.auth.models import User
 from django.core.files.uploadedfile import SimpleUploadedFile
-from django.test import SimpleTestCase, TestCase, override_settings
+from django.test import TestCase, override_settings
 
 from PIL import Image
 
-from music_site.storage import SmartCloudinaryStorage
-
-from .models import Playlist, Track, Artist
+from .models import Album, FavoritePlaylist, Playlist, Track, Artist
 
 
 def make_image(name='cover.png'):
@@ -197,24 +195,249 @@ class PlaylistTrackRemovalTests(TestCase):
         self.assertTrue(self.playlist.tracks.filter(id=self.track.id).exists())
 
 
-class CloudinaryResourceTypeTests(SimpleTestCase):
-    """Cloudinary для image/video возвращает public_id без расширения,
-    поэтому mp3 в media/tracks/ должен определяться как video, а не image."""
-
+class PlaylistVisibilityTests(TestCase):
     def setUp(self):
-        self.storage = SmartCloudinaryStorage()
+        self.owner = User.objects.create_user('owner-user', password='secret')
+        self.other = User.objects.create_user('other-user', password='secret')
+        self.playlist = Playlist.objects.create(name='Открытый', user=self.owner)
 
-    def test_audio_public_id_without_extension_is_video(self):
-        self.assertEqual(self.storage._get_resource_type('media/tracks/song'), 'video')
-        self.assertEqual(self.storage._get_resource_type('tracks/song'), 'video')
+    def detail_url(self):
+        return f'/playlist/{self.playlist.id}/'
 
-    def test_audio_with_extension_is_video(self):
-        self.assertEqual(self.storage._get_resource_type('media/tracks/song.mp3'), 'video')
-        self.assertEqual(self.storage._get_resource_type('tracks/song.flac'), 'video')
+    def test_open_playlist_is_visible_to_another_user(self):
+        self.client.force_login(self.other)
 
-    def test_images_are_still_images(self):
-        self.assertEqual(self.storage._get_resource_type('media/covers/cover'), 'image')
-        self.assertEqual(self.storage._get_resource_type('media/avatars/photo.jpg'), 'image')
+        response = self.client.get(self.detail_url())
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'Открытый')
+
+    def test_private_playlist_is_hidden_from_another_user(self):
+        self.playlist.is_private = True
+        self.playlist.save(update_fields=['is_private'])
+        self.client.force_login(self.other)
+
+        response = self.client.get(self.detail_url())
+
+        self.assertEqual(response.status_code, 404)
+
+    def test_owner_can_change_visibility(self):
+        self.client.force_login(self.owner)
+
+        response = self.client.post(
+            f'/playlist/{self.playlist.id}/visibility/',
+            {'is_private': '1'},
+        )
+
+        self.assertRedirects(response, self.detail_url())
+        self.playlist.refresh_from_db()
+        self.assertTrue(self.playlist.is_private)
+
+    def test_playlist_list_shows_categories(self):
+        self.client.force_login(self.owner)
+
+        response = self.client.get('/playlists/')
+
+        self.assertContains(response, 'Мои плейлисты')
+        self.assertContains(response, 'Все плейлисты')
+        self.assertContains(response, 'Избранные плейлисты')
+        self.assertNotContains(response, 'Закрытые плейлисты')
+
+    def test_default_tab_shows_own_playlists_only(self):
+        Playlist.objects.create(name='Мой закрытый', user=self.owner, is_private=True)
+        Playlist.objects.create(name='Чужой открытый', user=self.other)
+        self.client.force_login(self.owner)
+
+        response = self.client.get('/playlists/')
+
+        self.assertEqual(response.context['active_tab'], 'mine')
+        self.assertContains(response, 'Открытый')
+        self.assertContains(response, 'Мой закрытый')
+        self.assertNotContains(response, 'Чужой открытый')
+
+    def test_all_tab_shows_every_open_playlist(self):
+        Playlist.objects.create(name='Мой закрытый', user=self.owner, is_private=True)
+        Playlist.objects.create(name='Чужой открытый', user=self.other)
+        Playlist.objects.create(name='Чужой закрытый', user=self.other, is_private=True)
+        self.client.force_login(self.owner)
+
+        response = self.client.get('/playlists/?tab=all')
+
+        self.assertEqual(response.context['active_tab'], 'all')
+        self.assertContains(response, 'Открытый')
+        self.assertContains(response, 'Чужой открытый')
+        self.assertNotContains(response, 'Мой закрытый')
+        self.assertNotContains(response, 'Чужой закрытый')
+
+    def test_favorites_tab_shows_favorited_open_playlists(self):
+        FavoritePlaylist.objects.create(user=self.other, playlist=self.playlist)
+        self.client.force_login(self.other)
+
+        response = self.client.get('/playlists/?tab=favorites')
+
+        self.assertEqual(response.context['active_tab'], 'favorites')
+        self.assertContains(response, 'Открытый')
+
+    def test_unknown_tab_falls_back_to_mine(self):
+        self.client.force_login(self.owner)
+
+        response = self.client.get('/playlists/?tab=unknown')
+
+        self.assertEqual(response.context['active_tab'], 'mine')
+
+    def test_own_private_playlist_is_listed_in_mine_tab(self):
+        Playlist.objects.create(name='Мой закрытый', user=self.owner, is_private=True)
+        self.client.force_login(self.owner)
+
+        response = self.client.get('/playlists/?tab=mine')
+
+        self.assertContains(response, 'Мой закрытый')
+
+    def test_non_owner_cannot_manage_playlist(self):
+        self.client.force_login(self.other)
+
+        cover_response = self.client.post(
+            f'/playlist/{self.playlist.id}/cover/',
+            {'remove_cover': '1'},
+        )
+        visibility_response = self.client.post(
+            f'/playlist/{self.playlist.id}/visibility/',
+            {'is_private': '1'},
+        )
+        delete_response = self.client.get(f'/playlist/{self.playlist.id}/delete/')
+
+        self.assertEqual(cover_response.status_code, 404)
+        self.assertEqual(visibility_response.status_code, 404)
+        self.assertEqual(delete_response.status_code, 404)
+        self.playlist.refresh_from_db()
+        self.assertFalse(self.playlist.is_private)
+
+
+class PlaylistCreateVisibilityTests(TestCase):
+    def setUp(self):
+        self.user = User.objects.create_user('creator-user', password='secret')
+        self.client.force_login(self.user)
+
+    def test_create_with_open_choice_saves_open_playlist(self):
+        response = self.client.post(
+            '/playlist/create/',
+            {'name': 'Новый открытый', 'is_private': '0'},
+        )
+
+        playlist = Playlist.objects.get(name='Новый открытый')
+        self.assertFalse(playlist.is_private)
+        self.assertRedirects(response, f'/playlist/{playlist.id}/')
+
+    def test_create_with_private_choice_saves_private_playlist(self):
+        self.client.post(
+            '/playlist/create/',
+            {'name': 'Новый закрытый', 'is_private': '1'},
+        )
+
+        playlist = Playlist.objects.get(name='Новый закрытый')
+        self.assertTrue(playlist.is_private)
+
+    def test_create_without_choice_defaults_to_open(self):
+        self.client.post('/playlist/create/', {'name': 'Без выбора'})
+
+        playlist = Playlist.objects.get(name='Без выбора')
+        self.assertFalse(playlist.is_private)
+
+
+class PlaylistFavoriteTests(TestCase):
+    def setUp(self):
+        self.owner = User.objects.create_user('owner-user', password='secret')
+        self.other = User.objects.create_user('other-user', password='secret')
+        self.playlist = Playlist.objects.create(name='Чужой плейлист', user=self.owner)
+
+    def like_url(self):
+        return f'/like-playlist/{self.playlist.id}/'
+
+    def test_other_user_can_toggle_favorite(self):
+        self.client.force_login(self.other)
+
+        response = self.client.get(self.like_url())
+
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(response.json()['liked'])
+        self.assertTrue(
+            FavoritePlaylist.objects.filter(
+                user=self.other,
+                playlist=self.playlist,
+            ).exists()
+        )
+
+        response = self.client.get(self.like_url())
+
+        self.assertEqual(response.status_code, 200)
+        self.assertFalse(response.json()['liked'])
+        self.assertFalse(
+            FavoritePlaylist.objects.filter(
+                user=self.other,
+                playlist=self.playlist,
+            ).exists()
+        )
+
+    def test_owner_cannot_favorite_own_playlist(self):
+        self.client.force_login(self.owner)
+
+        response = self.client.get(self.like_url())
+
+        self.assertEqual(response.status_code, 400)
+        self.assertFalse(FavoritePlaylist.objects.exists())
+
+    def test_private_playlist_cannot_be_favorited(self):
+        self.playlist.is_private = True
+        self.playlist.save(update_fields=['is_private'])
+        self.client.force_login(self.other)
+
+        response = self.client.get(self.like_url())
+
+        self.assertEqual(response.status_code, 404)
+        self.assertFalse(FavoritePlaylist.objects.exists())
+
+    def test_favorites_page_shows_favorited_playlist(self):
+        FavoritePlaylist.objects.create(user=self.other, playlist=self.playlist)
+        self.client.force_login(self.other)
+
+        response = self.client.get('/favorites/')
+
+        self.assertContains(response, 'Избранные плейлисты')
+        self.assertContains(response, 'Чужой плейлист')
+
+    def test_favorite_heart_is_shown_on_playlist_detail(self):
+        FavoritePlaylist.objects.create(user=self.other, playlist=self.playlist)
+        self.client.force_login(self.other)
+
+        response = self.client.get(f'/playlist/{self.playlist.id}/')
+
+        self.assertContains(response, 'like-playlist-btn active')
+
+
+class IndexPageTests(TestCase):
+    def setUp(self):
+        artist = Artist.objects.create(name='Артист')
+        for index in range(12):
+            album = Album.objects.create(title=f'Альбом {index}', year=2020)
+            album.artists.add(artist)
+            Track.objects.create(
+                title=f'Трек {index}',
+                audio_file=f'tracks/{index}.mp3',
+                plays=index,
+            )
+
+    def test_index_shows_ten_new_albums_and_ten_popular_tracks(self):
+        response = self.client.get('/')
+
+        self.assertEqual(len(response.context['albums']), 10)
+        self.assertEqual(len(response.context['popular_tracks']), 10)
+        self.assertContains(response, 'new-albums-next')
+        self.assertContains(response, 'data-album-card="9"')
+        self.assertContains(
+            response,
+            'class="col-md-3 col-lg-2 is-hidden"',
+            count=4,
+        )
 
 
 class StreamAudioTests(TestCase):

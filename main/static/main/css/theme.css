@@ -4132,6 +4132,49 @@ body.light .section-title {
     margin-top: 0.2rem;
 }
 
+/* ---------- Категории плейлистов ---------- */
+.playlist-categories {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin: 0 0 1.2rem;
+}
+
+.playlist-category {
+    display: inline-flex;
+    align-items: center;
+    padding: 8px 16px;
+    border: 2px solid var(--glass-border);
+    background: transparent;
+    color: var(--text-dim) !important;
+    font-family: var(--font-display);
+    font-size: 0.78rem;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    line-height: 1.2;
+    text-transform: uppercase;
+    text-decoration: none;
+    transition: background 0.12s, color 0.12s, border-color 0.12s;
+}
+
+.playlist-category:hover {
+    background: var(--surface-soft);
+    border-color: var(--text-dim);
+    color: var(--text) !important;
+}
+
+.playlist-category.active {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: #0b0b0b !important;
+}
+
+.playlist-category.active:hover {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: #0b0b0b !important;
+}
+
 .playlist-card .playlist-card-body {
     padding-top: 12px;
 }
@@ -4191,28 +4234,68 @@ body.light .section-title {
     margin-bottom: 1.2rem !important;
 }
 
-.playlist-cover-form {
+.playlist-hero-actions {
     display: flex;
-    flex-wrap: wrap;
     align-items: center;
     gap: 10px;
-    padding: 14px;
-    border: 1px solid var(--glass-border);
-    background: var(--surface-soft);
 }
 
-.playlist-cover-form label {
-    flex: 0 0 100%;
-    margin: 0 !important;
+.playlist-cover-visual {
+    display: block;
+    width: 100%;
+}
+
+.playlist-cover-form {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 10px;
+    margin-top: 14px;
+}
+
+.playlist-cover-buttons {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+}
+
+.playlist-cover-form .btn-pill {
+    margin: 0;
 }
 
 .playlist-cover-form input[type="file"] {
-    flex: 1 1 240px;
-    min-width: 0;
+    display: none;
+}
+
+.playlist-cover-remove {
+    align-self: center;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    color: var(--text-dim);
+    font-family: var(--font-display);
+    font-size: 0.78rem;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    text-decoration: underline;
+    text-underline-offset: 3px;
+    cursor: pointer;
+    transition: color 0.12s;
+}
+
+.playlist-cover-remove:hover {
+    color: var(--text);
+}
+
+.playlist-cover-remove[hidden] {
+    display: none;
 }
 
 .playlist-cover-errors {
-    margin-top: 0.5rem;
+    width: 100%;
+    margin-top: 0.25rem;
     color: var(--danger);
     font-size: 0.83rem;
 }
@@ -4271,6 +4354,266 @@ body.light {
 
 body.light .bg-animated {
     background: var(--bg-0) !important;
+}
+
+/* ============================================================
+   НОВЫЕ АЛЬБОМЫ: ОКНО ИЗ 6 КАРТОЧЕК + СТРЕЛКИ
+   ============================================================ */
+.section-heading-row {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 16px;
+    margin-bottom: 1rem;
+}
+
+.section-heading-row .section-title {
+    margin-bottom: 0;
+}
+
+.section-nav {
+    display: flex;
+    flex-shrink: 0;
+    gap: 8px;
+    padding-top: 2px;
+}
+
+.section-nav-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 38px;
+    height: 38px;
+    border: 1px solid var(--glass-border);
+    border-radius: 50%;
+    background: var(--surface);
+    color: var(--text);
+    font-size: 1.05rem;
+    line-height: 1;
+    cursor: pointer;
+    transition: background 0.2s, border-color 0.2s, color 0.2s, transform 0.2s;
+}
+
+.section-nav-btn:hover:not(:disabled) {
+    background: var(--surface-soft);
+    border-color: var(--accent);
+    color: var(--accent);
+    transform: translateY(-1px);
+}
+
+.section-nav-btn:disabled {
+    opacity: 0.35;
+    cursor: default;
+}
+
+.new-albums-grid {
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+}
+
+.is-hidden {
+    display: none !important;
+}
+
+@media (max-width: 1200px) {
+    .new-albums-grid {
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+    }
+}
+
+@media (max-width: 768px) {
+    .new-albums-grid {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+}
+
+@media (max-width: 480px) {
+    .new-albums-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+}
+
+/* ============================================================
+   ИЗБРАННЫЕ АЛЬБОМЫ: ФИКСИРОВАННАЯ ШИРИНА КАРТОЧКИ
+   ============================================================ */
+.fav-album-card {
+    flex: 0 0 180px;
+    width: 180px;
+    min-width: 0;
+    max-width: 180px;
+    overflow: hidden;
+}
+
+.fav-album-info {
+    min-width: 0;
+}
+
+.fav-album-title,
+.fav-album-artist {
+    max-width: 100%;
+}
+
+/* ============================================================
+   ПЛЕЙЛИСТЫ: ОТКРЫТЫЕ / ЗАКРЫТЫЕ
+   ============================================================ */
+.playlist-group + .playlist-group {
+    margin-top: 2.2rem;
+}
+
+.playlist-group-head {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 0.4rem;
+}
+
+.playlist-group-title {
+    margin-bottom: 1rem;
+    font-size: 1.15rem;
+}
+
+.playlist-group-count {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 24px;
+    height: 24px;
+    padding: 0 8px;
+    border: 1px solid var(--glass-border);
+    border-radius: 999px;
+    background: var(--surface-soft);
+    color: var(--text-dim);
+    font-size: 0.75rem;
+    font-weight: 600;
+}
+
+.playlist-visibility-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 3px 10px;
+    border-radius: 999px;
+    font-size: 0.7rem;
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    vertical-align: middle;
+}
+
+.playlist-visibility-badge.is-public {
+    border: 1px solid rgba(80, 200, 120, 0.35);
+    background: rgba(80, 200, 120, 0.14);
+    color: #6ee7a0;
+}
+
+.playlist-visibility-badge.is-private {
+    border: 1px solid rgba(255, 107, 53, 0.35);
+    background: rgba(255, 107, 53, 0.14);
+    color: var(--accent);
+}
+
+.playlist-visibility-form {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: stretch;
+    gap: 12px;
+    margin-top: 14px;
+}
+
+.visibility-segmented {
+    display: inline-flex;
+    align-items: stretch;
+    padding: 2px;
+    border: 0;
+    /* Обводка рисуется снаружи, чтобы зелёная заливка выбранного
+       варианта была чуть меньше серой рамки. */
+    outline: 3px solid var(--border-strong);
+    outline-offset: 0;
+    background: var(--surface);
+    gap: 0;
+}
+
+.visibility-option,
+#main-content .visibility-option {
+    position: relative;
+    display: flex;
+    margin: 0;
+    cursor: pointer;
+}
+
+.visibility-option input {
+    position: absolute;
+    opacity: 0;
+    width: 1px;
+    height: 1px;
+    margin: 0;
+    pointer-events: none;
+}
+
+.visibility-option span {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 100%;
+    min-height: 38px;
+    padding: 0 22px;
+    color: var(--text-dim);
+    font-family: var(--font-display);
+    font-size: 0.82rem;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    line-height: 1;
+    text-transform: uppercase;
+    transition: background 0.12s, color 0.12s;
+    user-select: none;
+}
+
+.visibility-option:hover span {
+    color: var(--text);
+}
+
+.visibility-option input:checked + span {
+    background: var(--accent);
+    color: #0B0B0B;
+}
+
+.visibility-option input:focus-visible + span {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+}
+
+.playlist-visibility-form .btn-pill {
+    display: inline-flex;
+    align-items: center;
+    margin: 0;
+}
+
+.playlist-pick-group + .playlist-pick-group {
+    margin-top: 14px;
+}
+
+.playlist-pick-group-title {
+    margin-bottom: 6px;
+    color: var(--text-faint);
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+}
+
+.playlist-pick-badge {
+    margin-left: 8px;
+    color: var(--accent);
+    font-size: 0.68rem;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+}
+
+body.light .playlist-visibility-badge.is-public {
+    color: #1d7a45;
+}
+
+body.light .playlist-visibility-badge.is-private {
+    color: #b8431a;
 }
 
 

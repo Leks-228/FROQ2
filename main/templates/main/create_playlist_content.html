@@ -68,6 +68,21 @@
                 </small>
             </div>
 
+            <div style="margin-bottom: 1.5rem;">
+                <div class="visibility-segmented" role="radiogroup" aria-label="Доступ к плейлисту">
+                    <label class="visibility-option">
+                        <input type="radio" name="is_private" value="0"
+                               {% if form.is_private.value == '1' or form.is_private.value == True %}{% else %}checked{% endif %}>
+                        <span>Открытый</span>
+                    </label>
+                    <label class="visibility-option">
+                        <input type="radio" name="is_private" value="1"
+                               {% if form.is_private.value == '1' or form.is_private.value == True %}checked{% endif %}>
+                        <span>Закрытый</span>
+                    </label>
+                </div>
+            </div>
+
             <button type="submit"
                     style="background: var(--accent);
                            border: none;

@@ -1,56 +1,115 @@
-# Деплой на Render
+# Деплой на PythonAnywhere
 
-Схема: **Render** (сайт) + **Neon** (PostgreSQL) + **Cloudinary** (треки, обложки, аватары).
+Схема: **PythonAnywhere** (сайт) + **SQLite** (база) + **локальные файлы**
+(треки, обложки, аватары). Внешние БД и облачные хранилища не используются.
 
-## 1. Что подготовить
+## 1. Куда положить код
 
-1. **Git** и репозиторий на GitHub (в проекте уже есть `.gitignore`).
-2. **Cloudinary** — https://cloudinary.com → Console → `Cloud name`, `API Key`, `API Secret`.
-   - 100 треков по 3–5 МБ ≈ 300–500 МБ, это спокойно влезает в бесплатные 25 кредитов.
-   - На free-плане 1 кредит = 1 ГБ трафика видео (аудио считается как видео),
-     то есть примерно 5–8 тысяч полных прослушиваний в месяц.
-3. **Neon** — https://neon.tech → создать проект → скопировать `postgresql://...?sslmode=require`.
-4. **Render** — https://render.com.
+Загрузите проект в `/home/<username>/<project>` (например,
+`/home/sasha/freq`). Удобнее всего через `git clone` / `git pull` —
+тогда обновления не затрагивают файлы, которых нет в репозитории.
 
-## 2. Переменные окружения на Render
+## 2. Виртуальное окружение
 
-| Переменная | Значение |
+В Bash-консоли PythonAnywhere:
+
+```bash
+cd /home/<username>/<project>
+python3.12 -m venv venv
+source venv/bin/activate
+pip install -r requirements.txt
+```
+
+## 3. Постоянная папка с данными
+
+Чтобы обновление кода не удаляло треки, обложки и аккаунты, база и media
+хранятся вне папки проекта:
+
+```bash
+mkdir -p /home/<username>/freq-data
+```
+
+При первом запуске Django сам скопирует туда существующие `db.sqlite3`
+и `media/`, если они есть в проекте. Старые файлы остаются как резервная
+копия.
+
+Затем в WSGI-файле (вкладка **Web → WSGI configuration file**) добавьте
+строку с путём к этой папке:
+
+```python
+os.environ['FREQ_DATA_DIR'] = '/home/<username>/freq-data'
+```
+
+После этого база будет лежать в
+`/home/<username>/freq-data/db.sqlite3`, а файлы — в
+`/home/<username>/freq-data/media/`.
+
+## 4. Настройки Django в WSGI
+
+В том же WSGI-файле перед импортом приложения укажите:
+
+```python
+import os
+import sys
+
+path = '/home/<username>/<project>'
+if path not in sys.path:
+    sys.path.insert(0, path)
+
+os.environ['DJANGO_SETTINGS_MODULE'] = 'music_site.settings'
+os.environ['DEBUG'] = 'False'
+os.environ['SECRET_KEY'] = 'длинный-случайный-секрет'
+os.environ['ALLOWED_HOSTS'] = '<username>.pythonanywhere.com'
+os.environ['FREQ_DATA_DIR'] = '/home/<username>/freq-data'
+
+from music_site.wsgi import application
+```
+
+Если подключён свой домен, добавьте его в `ALLOWED_HOSTS` через запятую.
+
+## 5. Первый запуск
+
+В Bash-консоли:
+
+```bash
+cd /home/<username>/<project>
+source venv/bin/activate
+python manage.py migrate
+python manage.py collectstatic --noinput
+python manage.py createsuperuser
+```
+
+## 6. Статика и медиа на вкладке Web
+
+В разделе **Static files** добавьте два соответствия:
+
+| URL | Directory |
 |---|---|
-| `DATABASE_URL` | строка подключения из Neon |
-| `CLOUDINARY_CLOUD_NAME` | Cloud name |
-| `CLOUDINARY_API_KEY` | API key |
-| `CLOUDINARY_API_SECRET` | API secret |
-| `DJANGO_SUPERUSER_USERNAME` | логин админа |
-| `DJANGO_SUPERUSER_PASSWORD` | пароль админа |
-| `ALLOWED_HOSTS` | ваш домен, если подключили свой |
-| `CSRF_TRUSTED_ORIGINS` | `https://ваш-домен`, если подключили свой |
+| `/static/` | `/home/<username>/<project>/staticfiles` |
+| `/media/` | `/home/<username>/freq-data/media` |
 
-`SECRET_KEY` Render генерирует сам (см. `render.yaml`).
+После этого нажмите **Reload**.
 
-## 3. Порядок
+## 7. Как обновлять сайт
 
-1. Запушить репозиторий на GitHub.
-2. Render → **New** → **Blueprint** → выбрать репозиторий.
-3. Заполнить переменные из таблицы выше.
-4. Deploy. Сборка (`build.sh`) сама выполнит `collectstatic`, `migrate` и создаст админа.
-5. Открыть `https://<имя>.onrender.com/admin/` и загрузить артистов, альбомы и треки.
-6. Свой домен: Render → Settings → Custom Domain → CNAME у регистратора,
-   затем добавить `ALLOWED_HOSTS` и `CSRF_TRUSTED_ORIGINS`.
+```bash
+cd /home/<username>/<project>
+source venv/bin/activate
+git pull
+pip install -r requirements.txt
+python manage.py migrate
+python manage.py collectstatic --noinput
+```
 
-## 4. Важно
+Затем **Reload** на вкладке Web.
 
-- **Локальная база и папка media на прод не переезжают.** База будет пустая —
-  треки нужно загрузить заново через админку (старые файлы лежат в `media/tracks/`).
-- Без `CLOUDINARY_*` файлы сохранятся на диск Render и **пропадут** при следующем
-  деплое/перезапуске, а `/media/` при `DEBUG=false` не раздаётся.
-- Бесплатный Render засыпает через ~15 минут простоя: первый заход грузится 30–60 секунд.
-- `DEBUG` должен быть `false` (уже задано в `render.yaml`).
-- Задавать именно три переменные `CLOUDINARY_*`, а не одну `CLOUDINARY_URL`.
+`db.sqlite3` и `media/` в git не входят, а на PythonAnywhere лежат в
+`/home/<username>/freq-data`, поэтому при обновлении кода они не удаляются.
+Не удаляйте папку `freq-data` — это все треки, обложки и аккаунты.
 
-## 5. Проверка перед пушем
+## 8. Проверка перед обновлением
 
 ```bash
 python manage.py check
 python manage.py test
-python manage.py collectstatic --noinput
 ```

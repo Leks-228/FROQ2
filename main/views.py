@@ -22,7 +22,7 @@ from django.contrib.auth import update_session_auth_hash
 from .forms import RegisterForm, TrackUploadForm, AlbumUploadForm, TrackForm, BaseTrackFormSet
 from .forms import UserEditForm, ProfileEditForm, CustomPasswordChangeForm
 from .forms import PlaylistForm, PlaylistCoverForm
-from .models import Artist, Album, Track, Favorite, FavoriteAlbum, Playlist, ListeningHistory, Profile
+from .models import Artist, Album, Track, Favorite, FavoriteAlbum, FavoritePlaylist, Playlist, ListeningHistory, Profile
 
 
 def _safe_media_path(file_path):
@@ -76,17 +76,7 @@ def _serve_file(request, full_path, default_content_type='application/octet-stre
 def stream_audio(request, file_path):
     full_path = _safe_media_path(file_path)
 
-    if not os.path.exists(full_path):
-        # Файла нет на диске — возможно, он лежит в облачном хранилище
-        # (Cloudinary). Тогда отдаём редирект на его публичный URL.
-        track = Track.objects.filter(audio_file=file_path).only('audio_file').first()
-        if track is not None:
-            try:
-                remote_url = track.audio_file.url
-            except Exception:
-                remote_url = None
-            if remote_url and remote_url.startswith(('http://', 'https://')):
-                return redirect(remote_url)
+    if not os.path.isfile(full_path):
         raise Http404("Файл не найден")
 
     return _serve_file(request, full_path, default_content_type='audio/mpeg')
@@ -94,9 +84,9 @@ def stream_audio(request, file_path):
 
 def serve_media(request, file_path):
     """
-    Раздача MEDIA_ROOT через Django для варианта без Cloudinary
-    (например, на VPS с постоянным диском). При DEBUG=True этот маршрут
-    не подключается — там работает django.conf.urls.static.
+    Раздача MEDIA_ROOT через Django на проде (PythonAnywhere).
+    При DEBUG=True этот маршрут не подключается — там работает
+    django.conf.urls.static.
     """
     full_path = _safe_media_path(file_path)
     if not os.path.isfile(full_path):
@@ -129,9 +119,9 @@ def index(request):
     popular_tracks = (
         Track.objects.select_related('album')
         .prefetch_related('artists')
-        .order_by('-plays')[:5]
+        .order_by('-plays')[:10]
     )
-    albums = Album.objects.prefetch_related('artists').order_by('-created_at')[:8]
+    albums = Album.objects.prefetch_related('artists').order_by('-created_at')[:10]
     liked_track_ids = get_liked_track_ids(request.user)
     return render(request, 'main/index.html', {
         'tracks': tracks,
@@ -284,6 +274,28 @@ def like_album(request, album_id):
 
 
 @login_required
+def like_playlist(request, playlist_id):
+    playlist = get_object_or_404(Playlist, id=playlist_id)
+    # Свой плейлист добавлять в избранное не нужно — им владелец управляет.
+    if playlist.user_id == request.user.id:
+        return JsonResponse(
+            {'liked': False, 'error': 'Это ваш плейлист.'},
+            status=400,
+        )
+    # Закрытый плейлист недоступен посторонним.
+    if playlist.is_private:
+        raise Http404("Плейлист не найден")
+
+    favorite, created = FavoritePlaylist.objects.get_or_create(
+        user=request.user,
+        playlist=playlist,
+    )
+    if not created:
+        favorite.delete()
+    return JsonResponse({'liked': created})
+
+
+@login_required
 def favorites(request):
     query = request.GET.get('q', '').strip()
     tracks = (
@@ -300,11 +312,17 @@ def favorites(request):
         Album.objects.prefetch_related('artists')
         .filter(favorited_by__user=request.user)
     )
+    favorite_playlists = (
+        Playlist.objects.select_related('user')
+        .prefetch_related('tracks')
+        .filter(favorited_by__user=request.user, is_private=False)
+    )
     return render(request, 'main/favorites.html', {
         'tracks': tracks,
         'liked_track_ids': liked_track_ids,
         'query': query,
         'favorite_albums': favorite_albums,
+        'favorite_playlists': favorite_playlists,
     })
 
 
@@ -344,15 +362,77 @@ def search(request):
 
 # --- Плейлисты ---
 
+def _playlist_groups(playlists):
+    """Делит плейлисты пользователя на открытые и закрытые."""
+    playlists = list(playlists)
+    return [
+        {
+            'key': 'public',
+            'title': 'Открытые плейлисты',
+            'playlists': [p for p in playlists if not p.is_private],
+            'empty': 'Открытых плейлистов пока нет.',
+        },
+        {
+            'key': 'private',
+            'title': 'Закрытые плейлисты',
+            'playlists': [p for p in playlists if p.is_private],
+            'empty': 'Закрытых плейлистов пока нет.',
+        },
+    ]
+
+
 @login_required
 def playlist_list(request):
-    playlists = request.user.playlists.all()
-    return render(request, 'main/playlist_list_page.html', {'playlists': playlists})
+    tab = request.GET.get('tab', 'mine')
+    if tab not in ('mine', 'all', 'favorites'):
+        tab = 'mine'
+
+    if tab == 'all':
+        # Все открытые плейлисты, включая свои.
+        playlists = (
+            Playlist.objects.select_related('user')
+            .prefetch_related('tracks')
+            .filter(is_private=False)
+            .order_by('-created_at')
+        )
+        empty_message = 'Открытых плейлистов пока нет.'
+    elif tab == 'favorites':
+        playlists = (
+            Playlist.objects.select_related('user')
+            .prefetch_related('tracks')
+            .filter(favorited_by__user=request.user, is_private=False)
+            .order_by('-created_at')
+        )
+        empty_message = 'Нет избранных плейлистов.'
+    else:
+        # Мои плейлисты: и открытые, и закрытые.
+        playlists = (
+            request.user.playlists.select_related('user')
+            .prefetch_related('tracks')
+            .order_by('-created_at')
+        )
+        empty_message = 'У вас пока нет плейлистов.'
+
+    return render(request, 'main/playlist_list_page.html', {
+        'playlists': playlists,
+        'active_tab': tab,
+        'empty_message': empty_message,
+    })
 
 
-@login_required
 def playlist_detail(request, playlist_id):
-    playlist = get_object_or_404(Playlist, id=playlist_id, user=request.user)
+    playlist = get_object_or_404(
+        Playlist.objects.select_related('user'),
+        id=playlist_id,
+    )
+    is_owner = (
+        request.user.is_authenticated
+        and playlist.user_id == request.user.id
+    )
+    # Закрытый плейлист видит только владелец. Открытый доступен всем.
+    if playlist.is_private and not is_owner:
+        raise Http404("Плейлист не найден")
+
     tracks = (
         playlist.tracks.select_related('album').prefetch_related('artists').all()
     )
@@ -362,12 +442,21 @@ def playlist_detail(request, playlist_id):
             Q(title__icontains=query) | Q(artists__name__icontains=query)
         ).distinct()
     liked_track_ids = get_liked_track_ids(request.user)
+    is_favorite_playlist = (
+        request.user.is_authenticated
+        and not is_owner
+        and FavoritePlaylist.objects.filter(
+            user=request.user,
+            playlist=playlist,
+        ).exists()
+    )
     return render(request, 'main/playlist_detail.html', {
         'playlist': playlist,
         'tracks': tracks,
         'liked_track_ids': liked_track_ids,
         'query': query,
-        'cover_form': PlaylistCoverForm(instance=playlist),
+        'is_owner': is_owner,
+        'is_favorite_playlist': is_favorite_playlist,
     })
 
 
@@ -395,7 +484,7 @@ def create_playlist(request):
                     'tracks': tracks,
                     'liked_track_ids': get_liked_track_ids(request.user),
                     'query': '',
-                    'cover_form': PlaylistCoverForm(instance=playlist),
+                    'is_owner': True,
                 })
                 response['HX-Push-Url'] = reverse('playlist_detail', args=[playlist.id])
                 return response
@@ -470,11 +559,21 @@ def update_playlist_cover(request, playlist_id):
 
 
 @login_required
+@require_POST
+def update_playlist_visibility(request, playlist_id):
+    playlist = get_object_or_404(Playlist, id=playlist_id, user=request.user)
+    playlist.is_private = request.POST.get('is_private') == '1'
+    playlist.save(update_fields=['is_private'])
+    return redirect('playlist_detail', playlist_id=playlist.id)
+
+
+@login_required
 def user_playlists(request):
-    playlists = request.user.playlists.all()
+    playlists = request.user.playlists.order_by('-created_at')
     track_id = request.GET.get('track_id')
     return render(request, 'main/playlist_list.html', {
         'playlists': playlists,
+        'playlist_groups': _playlist_groups(playlists),
         'track_id': track_id
     })
 

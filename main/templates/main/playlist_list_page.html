@@ -1,9 +1,9 @@
 {% extends 'main/base.html' %}
-{% block title %}Мои плейлисты{% endblock %}
+{% block title %}Плейлисты{% endblock %}
 {% block content %}
 
 <div class="page-header">
-    <h2 class="section-title mb-0">Мои плейлисты</h2>
+    <h2 class="section-title mb-0">Плейлисты</h2>
     <a href="{% url 'create_playlist' %}"
        hx-get="{% url 'create_playlist' %}"
        hx-target="#main-content"
@@ -14,6 +14,33 @@
         + Создать плейлист
     </a>
 </div>
+
+<nav class="playlist-categories" aria-label="Категории плейлистов">
+    <a href="{% url 'playlist_list' %}?tab=mine"
+       class="playlist-category{% if active_tab == 'mine' %} active{% endif %}"
+       hx-get="{% url 'playlist_list' %}?tab=mine"
+       hx-target="#main-content"
+       hx-select="#main-content"
+       hx-swap="outerHTML"
+       hx-push-url="true"
+       {% if active_tab == 'mine' %}aria-current="page"{% endif %}>Мои плейлисты</a>
+    <a href="{% url 'playlist_list' %}?tab=all"
+       class="playlist-category{% if active_tab == 'all' %} active{% endif %}"
+       hx-get="{% url 'playlist_list' %}?tab=all"
+       hx-target="#main-content"
+       hx-select="#main-content"
+       hx-swap="outerHTML"
+       hx-push-url="true"
+       {% if active_tab == 'all' %}aria-current="page"{% endif %}>Все плейлисты</a>
+    <a href="{% url 'playlist_list' %}?tab=favorites"
+       class="playlist-category{% if active_tab == 'favorites' %} active{% endif %}"
+       hx-get="{% url 'playlist_list' %}?tab=favorites"
+       hx-target="#main-content"
+       hx-select="#main-content"
+       hx-swap="outerHTML"
+       hx-push-url="true"
+       {% if active_tab == 'favorites' %}aria-current="page"{% endif %}>Избранные плейлисты</a>
+</nav>
 
 {% if playlists %}
 <div class="albums-grid playlist-grid">
@@ -34,14 +61,15 @@
             <div class="playlist-card-body">
                 <h5>{{ playlist.name }}</h5>
                 <p>{{ playlist.tracks.count }} треков</p>
-                <p>Плейлист</p>
+                <p>{% if playlist.is_private %}Закрытый{% else %}Открытый{% endif %}</p>
+                <p>{% if playlist.user_id == user.id %}Вы{% else %}{{ playlist.user.username }}{% endif %}</p>
             </div>
         </div>
     </a>
     {% endfor %}
 </div>
 {% else %}
-<p class="empty-state">У вас пока нет плейлистов.</p>
+<p class="empty-state">{{ empty_message }}</p>
 {% endif %}
 
 {% endblock %}

@@ -29,6 +29,36 @@
         {% endfor %}
     </div>
 
+    <h2 class="section-title mb-3" style="margin-top: 2rem;">Избранные плейлисты</h2>
+    {% if favorite_playlists %}
+    <div class="albums-grid playlist-grid">
+        {% for playlist in favorite_playlists %}
+        <a href="{% url 'playlist_detail' playlist.id %}"
+           class="album-card playlist-card"
+           hx-get="{% url 'playlist_detail' playlist.id %}"
+           hx-target="#main-content"
+           hx-select="#main-content"
+           hx-swap="outerHTML"
+           hx-push-url="true">
+            <div class="album-card-inner">
+                {% if playlist.cover %}
+                    <img src="{{ playlist.cover.url }}" alt="{{ playlist.name }}">
+                {% else %}
+                    <div class="cover-fallback playlist-cover-fallback">{{ playlist.name|slice:":1"|upper }}</div>
+                {% endif %}
+                <div class="playlist-card-body">
+                    <h5>{{ playlist.name }}</h5>
+                    <p>{{ playlist.tracks.count }} треков</p>
+                    <p>{{ playlist.user.username }}</p>
+                </div>
+            </div>
+        </a>
+        {% endfor %}
+    </div>
+    {% else %}
+    <p style="color: var(--text-dim);">Нет избранных плейлистов.</p>
+    {% endif %}
+
     <h2 class="section-title mb-3" style="margin-top: 2rem;">Избранные треки</h2>
 
     <!-- Поиск -->

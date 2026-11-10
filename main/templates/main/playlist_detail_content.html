@@ -7,43 +7,82 @@
         <div class="playlist-hero-cover"
              data-playlist-name="{{ playlist.name }}"
              data-playlist-initial="{{ playlist.name|slice:":1"|upper }}">
-            {% if playlist.cover %}
-                <img src="{{ playlist.cover.url }}" alt="{{ playlist.name }}">
-            {% else %}
-                <div class="cover-fallback playlist-cover-fallback">{{ playlist.name|slice:":1"|upper }}</div>
-            {% endif %}
+            <div class="playlist-cover-visual">
+                {% if playlist.cover %}
+                    <img src="{{ playlist.cover.url }}" alt="{{ playlist.name }}">
+                {% else %}
+                    <div class="cover-fallback playlist-cover-fallback">{{ playlist.name|slice:":1"|upper }}</div>
+                {% endif %}
+            </div>
         </div>
 
         <div class="playlist-hero-info">
             <div class="page-header playlist-hero-header">
                 <div>
                     <h2 class="section-title mb-0">{{ playlist.name }}</h2>
-                    <span class="page-subtitle">{{ tracks.count }} треков</span>
+                    <span class="page-subtitle">
+                        {{ tracks.count }} треков
+                        <span class="playlist-visibility-badge {% if playlist.is_private %}is-private{% else %}is-public{% endif %}">
+                            {% if playlist.is_private %}Закрытый{% else %}Открытый{% endif %}
+                        </span>
+                    </span>
                 </div>
-                <a href="{% url 'delete_playlist' playlist.id %}"
-                   onclick="return confirm('Удалить плейлист «{{ playlist.name|escapejs }}»? Это действие нельзя отменить.');"
-                   class="btn-pill btn-pill-danger"
-                   title="Удалить плейлист">
-                    Удалить
-                </a>
+                <div class="playlist-hero-actions">
+                    {% if user.is_authenticated and not is_owner %}
+                    <button type="button"
+                            class="like-btn like-small like-playlist-btn{% if is_favorite_playlist %} active{% endif %}"
+                            data-playlist-id="{{ playlist.id }}"
+                            title="{% if is_favorite_playlist %}Убрать из избранного{% else %}Добавить в избранное{% endif %}">
+                        {% if is_favorite_playlist %}&#9829;{% else %}&#9825;{% endif %}
+                    </button>
+                    {% endif %}
+                    {% if is_owner %}
+                    <a href="{% url 'delete_playlist' playlist.id %}"
+                       onclick="return confirm('Удалить плейлист «{{ playlist.name|escapejs }}»? Это действие нельзя отменить.');"
+                       class="btn-pill btn-pill-danger"
+                       title="Удалить плейлист">
+                        Удалить
+                    </a>
+                    {% endif %}
+                </div>
             </div>
 
-            {% if user == playlist.user %}
+            {% if is_owner %}
+            <form method="post"
+                  action="{% url 'update_playlist_visibility' playlist.id %}"
+                  class="playlist-visibility-form">
+                {% csrf_token %}
+                <div class="visibility-segmented" role="radiogroup" aria-label="Доступ к плейлисту">
+                    <label class="visibility-option">
+                        <input type="radio" name="is_private" value="0"
+                               {% if not playlist.is_private %}checked{% endif %}>
+                        <span>Открытый</span>
+                    </label>
+                    <label class="visibility-option">
+                        <input type="radio" name="is_private" value="1"
+                               {% if playlist.is_private %}checked{% endif %}>
+                        <span>Закрытый</span>
+                    </label>
+                </div>
+                <button type="submit" class="btn-pill btn-pill-ghost">Сохранить</button>
+            </form>
+
             <form method="post"
                   action="{% url 'update_playlist_cover' playlist.id %}"
                   enctype="multipart/form-data"
                   class="playlist-cover-form"
                   data-remove-url="{% url 'update_playlist_cover' playlist.id %}">
                 {% csrf_token %}
-                <label for="id_cover">Обложка плейлиста</label>
-                {{ cover_form.cover }}
-                <button type="submit" class="btn-pill">Сохранить обложку</button>
-                <button type="button"
-                        class="btn-pill btn-pill-ghost playlist-cover-remove"
-                        title="Убрать обложку"
-                        {% if not playlist.cover %}hidden{% endif %}>Убрать</button>
+                <input type="file" name="cover" accept="image/*" class="playlist-cover-input">
+                <div class="playlist-cover-buttons">
+                    <button type="button" class="btn-pill" data-cover-pick>Изменить обложку</button>
+                    <button type="button"
+                            class="playlist-cover-remove"
+                            title="Убрать обложку"
+                            {% if not playlist.cover %}hidden{% endif %}>Убрать</button>
+                </div>
+                <div class="playlist-cover-errors" role="alert" aria-live="polite"></div>
             </form>
-            <div class="playlist-cover-errors" role="alert" aria-live="polite"></div>
             {% endif %}
         </div>
     </div>
@@ -80,11 +119,13 @@
                 {% if track.id in liked_track_ids %}♥{% else %}♡{% endif %}
             </button>
             {% endif %}
+            {% if is_owner %}
             <button class="add-to-playlist-btn remove-from-playlist-btn small"
                     hx-post="{% url 'remove_from_playlist' playlist.id track.id %}"
                     hx-target="closest .track-item"
                     hx-swap="delete"
                     title="Убрать из плейлиста">&times;</button>
+            {% endif %}
         </div>
     {% empty %}
         <p class="empty-state">В этом плейлисте пока нет треков.</p>

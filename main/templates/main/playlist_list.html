@@ -9,13 +9,21 @@
     <div class="modal-sheet-body">
         {% if playlists %}
             <div class="playlist-pick-list">
-                {% for playlist in playlists %}
-                    <button class="playlist-pick"
-                            hx-post="{% url 'add_to_playlist' track_id %}"
-                            hx-vals='{"playlist_id": "{{ playlist.id }}"}'
-                            hx-swap="none">
-                        {{ playlist.name }}
-                    </button>
+                {% for group in playlist_groups %}
+                    {% if group.playlists %}
+                    <div class="playlist-pick-group">
+                        <div class="playlist-pick-group-title">{{ group.title }}</div>
+                        {% for playlist in group.playlists %}
+                            <button class="playlist-pick"
+                                    hx-post="{% url 'add_to_playlist' track_id %}"
+                                    hx-vals='{"playlist_id": "{{ playlist.id }}"}'
+                                    hx-swap="none">
+                                {{ playlist.name }}
+                                {% if playlist.is_private %}<span class="playlist-pick-badge">закрытый</span>{% endif %}
+                            </button>
+                        {% endfor %}
+                    </div>
+                    {% endif %}
                 {% endfor %}
             </div>
             <a href="{% url 'create_playlist' %}"

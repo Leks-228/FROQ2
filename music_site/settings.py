@@ -1,6 +1,6 @@
 import os
+import shutil
 from pathlib import Path
-import dj_database_url
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
@@ -30,21 +30,11 @@ CSRF_TRUSTED_ORIGINS = [
     if origin.strip()
 ]
 
-# Render автоматически сообщает внешний домен сервиса в этой переменной.
-# Добавляем его в ALLOWED_HOSTS и CSRF_TRUSTED_ORIGINS, чтобы формы
-# (лайки, плейлисты, загрузка) работали без ручной настройки.
-RENDER_EXTERNAL_HOSTNAME = os.environ.get("RENDER_EXTERNAL_HOSTNAME")
-if RENDER_EXTERNAL_HOSTNAME:
-    ALLOWED_HOSTS.append(RENDER_EXTERNAL_HOSTNAME)
-    render_origin = f"https://{RENDER_EXTERNAL_HOSTNAME}"
-    if render_origin not in CSRF_TRUSTED_ORIGINS:
-        CSRF_TRUSTED_ORIGINS.append(render_origin)
-
 SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
 USE_X_FORWARDED_HOST = True
 
 if not DEBUG:
-    # На проде сайт отдаётся по HTTPS (Render терминирует TLS),
+    # На PythonAnywhere сайт отдаётся по HTTPS (прокси терминирует TLS),
     # поэтому куки должны передаваться только по HTTPS.
     SESSION_COOKIE_SECURE = True
     CSRF_COOKIE_SECURE = True
@@ -72,9 +62,6 @@ INSTALLED_APPS = [
 
     'crispy_forms',
     'crispy_bootstrap5',
-
-    'cloudinary',
-    'cloudinary_storage',
 ]
 
 
@@ -123,22 +110,46 @@ WSGI_APPLICATION = 'music_site.wsgi.application'
 
 
 # =========================
-# DATABASE (Railway)
+# DATA / DATABASE (SQLite)
 # =========================
 
-DATABASE_URL = os.environ.get('DATABASE_URL', '')
+# Папка, в которой лежат база и загруженные файлы.
+# На PythonAnywhere по умолчанию выносим её за пределы папки с кодом
+# (/home/<username>/freq-data), чтобы обновление сайта не затрагивало
+# треки, обложки и аккаунты. Локально данные остаются в папке проекта.
+def _default_data_dir():
+    if os.environ.get('PYTHONANYWHERE_DOMAIN'):
+        return Path.home() / 'freq-data'
+    return BASE_DIR
+
+
+DATA_DIR = Path(os.environ.get('FREQ_DATA_DIR', str(_default_data_dir())))
+
+# Один раз переносим уже существующие базу и media в постоянную папку.
+# Копируем, а не перемещаем: старые файлы остаются как резервная копия.
+if DATA_DIR != BASE_DIR:
+    try:
+        DATA_DIR.mkdir(parents=True, exist_ok=True)
+
+        project_db = BASE_DIR / 'db.sqlite3'
+        data_db = DATA_DIR / 'db.sqlite3'
+        if project_db.is_file() and not data_db.exists():
+            shutil.copy2(project_db, data_db)
+
+        project_media = BASE_DIR / 'media'
+        data_media = DATA_DIR / 'media'
+        if project_media.is_dir() and not data_media.exists():
+            shutil.copytree(project_media, data_media)
+    except OSError:
+        # Если постоянная папка недоступна, работаем как раньше — из проекта.
+        DATA_DIR = BASE_DIR
+
 
 DATABASES = {
-    'default': dj_database_url.config(
-        default='sqlite:///db.sqlite3',   # запасной вариант для локальной разработки
-        conn_max_age=600,
-        # Neon «засыпает» при простое — проверяем соединение перед запросом,
-        # иначе первый запрос после паузы может упасть.
-        conn_health_checks=True,
-        # SSL нужен только для облачной PostgreSQL (Neon и т.п.),
-        # для SQLite этот параметр недопустим.
-        ssl_require=DATABASE_URL.startswith(('postgres://', 'postgresql://')),
-    )
+    'default': {
+        'ENGINE': 'django.db.backends.sqlite3',
+        'NAME': os.environ.get('DB_PATH', str(DATA_DIR / 'db.sqlite3')),
+    }
 }
 
 # =========================
@@ -167,37 +178,18 @@ USE_TZ = True
 
 
 # =========================
-# MEDIA / CLOUDINARY
+# MEDIA / STATIC
 # =========================
 
 MEDIA_URL = '/media/'
-MEDIA_ROOT = BASE_DIR / 'media'
-
-CLOUDINARY_STORAGE = {
-    "CLOUD_NAME": os.environ.get("CLOUDINARY_CLOUD_NAME"),
-    "API_KEY": os.environ.get("CLOUDINARY_API_KEY"),
-    "API_SECRET": os.environ.get("CLOUDINARY_API_SECRET"),
-}
-
-# Cloudinary используем только если заданы все три переменные окружения.
-# Иначе (локальная разработка) файлы сохраняются в MEDIA_ROOT.
-USE_CLOUDINARY = all(CLOUDINARY_STORAGE.values())
-
-
-# =========================
-# STORAGES
-# =========================
+MEDIA_ROOT = Path(os.environ.get('MEDIA_ROOT', str(DATA_DIR / 'media')))
 
 STATIC_URL = '/static/'
-STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
+STATIC_ROOT = BASE_DIR / 'staticfiles'
 
 STORAGES = {
     "default": {
-        "BACKEND": (
-            "music_site.storage.SmartCloudinaryStorage"
-            if USE_CLOUDINARY
-            else "django.core.files.storage.FileSystemStorage"
-        ),
+        "BACKEND": "django.core.files.storage.FileSystemStorage",
     },
     "staticfiles": {
         # Не падает с 500, если collectstatic не запускали (см. music_site/storage.py)

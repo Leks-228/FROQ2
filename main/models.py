@@ -64,6 +64,7 @@ class Playlist(models.Model):
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='playlists', verbose_name='Пользователь')
     tracks = models.ManyToManyField(Track, blank=True, related_name='playlists', verbose_name='Треки')
     cover = models.ImageField(upload_to='playlists/', blank=True, null=True, verbose_name='Обложка')
+    is_private = models.BooleanField(default=False, verbose_name='Закрытый плейлист')
     created_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
@@ -91,6 +92,19 @@ class FavoriteAlbum(models.Model):
 
     def __str__(self):
         return f"{self.user.username} - {self.album.title}"
+
+
+class FavoritePlaylist(models.Model):
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='favorite_playlists')
+    playlist = models.ForeignKey(Playlist, on_delete=models.CASCADE, related_name='favorited_by')
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        unique_together = ('user', 'playlist')
+
+    def __str__(self):
+        return f"{self.user.username} - {self.playlist.name}"
+
 
 class ListeningHistory(models.Model):
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='listening_history')
